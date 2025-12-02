@@ -1,0 +1,40 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "pixcraft-4841b",
+          "appId": "1:430853844672:android:44278d538ca6cf73ecc725",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "pixcraft-4841b",
+          "configurations": {
+            "android": "1:430853844672:android:44278d538ca6cf73ecc725",
+            "ios": "1:430853844672:ios:a044b02abe018c03ecc725",
+            "web": "1:430853844672:web:2f8bc0d863828b35ecc725"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint",
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ]
+}

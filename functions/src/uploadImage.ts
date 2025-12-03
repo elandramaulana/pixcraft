@@ -2,7 +2,6 @@
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getStorage } from 'firebase-admin/storage';
-import { getFirestore } from 'firebase-admin/firestore';
 import * as admin from 'firebase-admin';
 import { UploadImageRequest, UploadImageResponse } from './types';
 import { CONFIG } from './config';
@@ -22,7 +21,6 @@ export const uploadImage = onCall<UploadImageRequest, Promise<UploadImageRespons
   },
   async (request) => {
     try {
-      // Log untuk debugging
       console.log('📥 Upload request received');
       console.log('User ID:', request.auth?.uid);
       
@@ -53,6 +51,12 @@ export const uploadImage = onCall<UploadImageRequest, Promise<UploadImageRespons
       }
 
       console.log('✅ Validation passed');
+
+      // Initialize Firestore with specific database name
+      const db = admin.firestore();
+      db.settings({ databaseId: 'pixcraft' });
+      
+      console.log('🔧 Using Firestore database: pixcraft');
 
       // Convert base64 to buffer
       console.log('📦 Converting base64 to buffer...');
@@ -97,29 +101,44 @@ export const uploadImage = onCall<UploadImageRequest, Promise<UploadImageRespons
       const imageUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
       console.log(`✅ Public URL: ${imageUrl}`);
 
-      // Save metadata to Firestore
-      console.log('💾 Saving metadata to Firestore...');
+      // Create NEW generation document with original image only
+      console.log('💾 Creating generation document in Firestore...');
+      
+      let generationId = '';
+      
       try {
-        const db = getFirestore();
-        
-        // Langsung simpan tanpa test connection
-        const docRef = await db.collection(CONFIG.COLLECTIONS.IMAGES).add({
+        const generationData = {
           userId,
-          imageUrl,
-          storagePath,
-          fileName,
-          uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
-          type: 'original',
-          createdAt: new Date().toISOString(),
-        });
-
-        console.log('✅ Metadata saved with ID:', docRef.id);
+          originalImage: {
+            url: imageUrl,
+            storagePath,
+            fileName,
+          },
+          generatedImages: [], // Empty array, will be filled during generation
+          status: 'uploaded', // Initial status
+          variationTypes: [],
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        
+        console.log('📝 Generation document data:', JSON.stringify(generationData, null, 2));
+        console.log('📝 Saving to collection:', CONFIG.COLLECTIONS.USER_GENERATIONS);
+        
+        const docRef = await db.collection(CONFIG.COLLECTIONS.USER_GENERATIONS).add(generationData);
+        generationId = docRef.id;
+        
+        console.log('✅ Generation document created with ID:', generationId);
         
       } catch (firestoreError: any) {
-        console.error('⚠️ Firestore save failed:', firestoreError.message);
+        console.error('⚠️ Firestore save failed:', firestoreError);
+        console.error('Error code:', firestoreError.code);
+        console.error('Error message:', firestoreError.message);
         
-        // Tetap return success karena file sudah ter-upload
-        console.log('⚠️ Image uploaded successfully, but metadata save failed');
+        throw new HttpsError(
+          'internal',
+          'Failed to create generation document',
+          firestoreError.message
+        );
       }
 
       console.log('🎉 Upload completed successfully');
@@ -128,6 +147,7 @@ export const uploadImage = onCall<UploadImageRequest, Promise<UploadImageRespons
         success: true,
         imageUrl,
         storagePath,
+        documentId: generationId,
       };
 
     } catch (error: any) {

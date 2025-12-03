@@ -1,24 +1,3 @@
-export interface GeneratePhotoRequest {
-  imageUrl: string;
-  userId: string;
-  variations?: string[]; // e.g., ['beach', 'city', 'mountain']
-}
-
-export interface GeneratePhotoResponse {
-  success: boolean;
-  generationId: string;
-  message: string;
-  variations?: GeneratedVariation[];
-  error?: string;
-}
-
-export interface GeneratedVariation {
-  type: string; // 'beach', 'city', etc.
-  imageUrl: string;
-  storageRef: string;
-  prompt: string;
-}
-
 export interface UploadImageRequest {
   imageBase64: string;
   userId: string;
@@ -29,5 +8,40 @@ export interface UploadImageResponse {
   success: boolean;
   imageUrl: string;
   storagePath: string;
-  error?: string;
+  documentId?: string; // generationId
+}
+
+export interface GeneratePhotoRequest {
+  imageUrl: string;
+  userId: string;
+  variations?: string[]; 
+}
+
+export interface GeneratedVariation {
+  type: string;
+  imageUrl: string;
+  storagePath: string;   // ➤ hanya pakai ini
+  prompt: string;
+}
+
+export interface GeneratePhotoResponse {
+  success: boolean;
+  generationId: string;
+  message: string;
+  variations: GeneratedVariation[];
+}
+
+export interface UserGenerationDocument {
+  userId: string;
+  originalImage: {
+    url: string;
+    storagePath: string;
+    fileName: string;
+  };
+  generatedImages: GeneratedVariation[];
+  status: 'processing' | 'completed' | 'failed';
+  variationTypes: string[];
+  createdAt: FirebaseFirestore.Timestamp;
+  updatedAt: FirebaseFirestore.Timestamp;
+  completedAt?: FirebaseFirestore.Timestamp;
 }

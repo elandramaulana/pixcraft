@@ -72,4 +72,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'pixcraft-4841b.firebasestorage.app',
     iosBundleId: 'com.example.pixcraft',
   );
+
 }

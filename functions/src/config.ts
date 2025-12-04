@@ -1,34 +1,26 @@
 export const CONFIG = {
-  IMAGEN_MODEL: "imagen-4.0-fast-generate-001",
+  IMAGEN_MODEL: "imagen-3.0-capability-001",
   REGION: "us-central1",
   MAX_VARIATIONS: 4,
-  IMAGE_ASPECT_RATIO: "1:1",
-  SAFETY_FILTER: "block_some",
-  PERSON_GENERATION: "allow_adult",
   
-  // Firestore collections - UPDATED STRUCTURE
   COLLECTIONS: {
     USERS: "users",
     USER_GENERATIONS: "user_generations",
   },
   
-  // Storage paths
   STORAGE_PATHS: {
     ORIGINALS: "originals",
     GENERATED: "generated",
   },
 };
 
+// IMPROVED PROMPTS - More detailed and descriptive
 export const VARIATION_PROMPTS = {
-  beach: "Replace the background with a beautiful tropical beach scene. Keep the person in the same pose and appearance. The new background should show turquoise water, golden sand, and palm trees. Professional photo editing style, seamless integration.",
+  beach: "stunning tropical beach background with crystal clear turquoise ocean water, white sandy shore, tall swaying palm trees, bright sunny sky with few clouds, paradise island atmosphere, highly detailed, photorealistic",
   
-  city: "Replace the background with vibrant city streets and modern architecture. Keep the person in the same pose and appearance. The new background should show urban buildings, stylish cityscape. Professional photo editing style, seamless integration.",
+  city: "modern urban cityscape background with towering glass skyscrapers, busy street scene, contemporary architecture, evening golden hour lighting, metropolitan atmosphere, sharp details, photorealistic",
   
-  mountain: "Replace the background with a scenic mountain landscape. Keep the person in the same pose and appearance. The new background should show mountain peaks, breathtaking valley views. Professional photo editing style, seamless integration.",
+  mountain: "majestic mountain landscape background with snow-capped peaks, dramatic alpine scenery, green valley below, clear blue sky, breathtaking vista, natural lighting, highly detailed, photorealistic",
   
-  cafe: "Replace the background with a cozy aesthetic cafe interior. Keep the person in the same pose and appearance. The new background should show beautiful cafe decor, warm ambiance. Professional photo editing style, seamless integration.",
-  
-  desert: "Replace the background with a stunning desert landscape at golden hour. Keep the person in the same pose and appearance. The new background should show sand dunes, warm desert light. Professional photo editing style, seamless integration.",
-  
-  forest: "Replace the background with a lush green forest scene. Keep the person in the same pose and appearance. The new background should show tall trees, natural sunlight filtering through. Professional photo editing style, seamless integration.",
+  cafe: "cozy modern cafe interior background with warm ambient lighting, wooden furniture, potted plants, large windows, aesthetic minimalist decor, soft natural light, inviting atmosphere, photorealistic",
 };

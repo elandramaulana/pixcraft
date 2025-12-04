@@ -1,15 +1,9 @@
-// FILE: functions/src/uploadImage.ts
-
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getStorage } from 'firebase-admin/storage';
 import * as admin from 'firebase-admin';
+import { db } from './firebase';
 import { UploadImageRequest, UploadImageResponse } from './types';
 import { CONFIG } from './config';
-
-// Initialize Firebase Admin ONCE
-if (admin.apps.length === 0) {
-  admin.initializeApp();
-}
 
 export const uploadImage = onCall<UploadImageRequest, Promise<UploadImageResponse>>(
   {
@@ -51,11 +45,6 @@ export const uploadImage = onCall<UploadImageRequest, Promise<UploadImageRespons
       }
 
       console.log('✅ Validation passed');
-
-      // Initialize Firestore with specific database name
-      const db = admin.firestore();
-      db.settings({ databaseId: 'pixcraft' });
-      
       console.log('🔧 Using Firestore database: pixcraft');
 
       // Convert base64 to buffer

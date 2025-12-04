@@ -1,18 +1,16 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pixcraft/app/theme/app_text_style.dart';
 import 'package:pixcraft/core/extensions/context_extension.dart';
 import 'package:pixcraft/features/photo_generation/presentation/widgets/generated_image_grid.dart';
 import '../../../../app/theme/app_colors.dart';
-import '../../../../core/constants/layout_constants.dart';
 import '../../domain/entities/photo_generation_state.dart';
 import '../providers/photo_generation_provider.dart';
-import '../widgets/empty_state_section.dart';
-import '../widgets/generation_button.dart';
 import '../widgets/generation_loading.dart';
 import '../widgets/generation_error.dart';
 import '../widgets/image_preview.dart';
 import '../widgets/upload_section.dart';
+import 'generation_history_screen.dart';
 
 class PhotoGenerationScreen extends ConsumerWidget {
   const PhotoGenerationScreen({super.key});
@@ -23,41 +21,63 @@ class PhotoGenerationScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // Main Content
-            CustomScrollView(
+      body: Stack(
+        children: [
+          // Main Content
+          SafeArea(
+            bottom: false,
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
               slivers: [
-                // App Bar
-                SliverAppBar(
-                  floating: true,
-                  snap: true,
-                  backgroundColor: AppColors.background,
-                  elevation: 0,
-                  expandedHeight: 80,
-                  flexibleSpace: FlexibleSpaceBar(
-                    titlePadding: const EdgeInsets.symmetric(
-                      horizontal: LayoutConstants.paddingHorizontal,
-                      vertical: 16,
-                    ),
-                    title: Column(
+                // Modern Minimal App Bar
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Text(
-                          'Pixcraft',
-                          style: AppTextStyles.displayMedium.copyWith(
-                            fontSize: 28,
-                          ),
+                        // Top Bar
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // App Title
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ShaderMask(
+                                  shaderCallback: (bounds) => LinearGradient(
+                                    colors: [
+                                      AppColors.primary,
+                                      AppColors.primary.withOpacity(0.7),
+                                    ],
+                                  ).createShader(bounds),
+                                  child: const Text(
+                                    'Pixcraft',
+                                    style: TextStyle(
+                                      fontSize: 34,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: -1,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'AI Photo Studio',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.textSecondary,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            // History Button
+                            _buildHistoryButton(context),
+                          ],
                         ),
-                        Text(
-                          'AI-Powered Photo Magic',
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: AppColors.textSecondary,
-                            fontSize: 8,
-                          ),
-                        ),
+                        const SizedBox(height: 24),
                       ],
                     ),
                   ),
@@ -65,23 +85,62 @@ class PhotoGenerationScreen extends ConsumerWidget {
 
                 // Content
                 SliverPadding(
-                  padding: const EdgeInsets.all(
-                    LayoutConstants.paddingHorizontal,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   sliver: SliverToBoxAdapter(
                     child: _buildContent(context, ref, state),
                   ),
                 ),
+
+                // Bottom Padding
+                const SliverToBoxAdapter(child: SizedBox(height: 40)),
               ],
             ),
+          ),
 
-            // Loading Overlay
-            if (state.isLoading)
-              GenerationLoading(
-                progress: state.progress,
-                message: state.currentStep,
+          // Loading Overlay
+          if (state.isLoading)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.5),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: GenerationLoading(
+                    progress: state.progress,
+                    message: state.currentStep,
+                  ),
+                ),
               ),
-          ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryButton(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const GenerationHistoryScreen()),
+          );
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppColors.primary.withOpacity(0.1),
+              width: 1.5,
+            ),
+          ),
+          child: Icon(
+            Icons.history_rounded,
+            color: AppColors.primary,
+            size: 22,
+          ),
         ),
       ),
     );
@@ -92,136 +151,296 @@ class PhotoGenerationScreen extends ConsumerWidget {
     WidgetRef ref,
     PhotoGenerationState state,
   ) {
-    // Error State
     if (state.isError) {
-      return GenerationError(
-        message: state.errorMessage ?? 'Something went wrong',
-        onRetry: () => ref.read(photoGenerationProvider.notifier).retry(),
-      );
+      return _buildErrorState(ref, state);
     }
 
-    // Completed State - Show Results
     if (state.isCompleted && state.hasGeneratedImages) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Original Image Preview
-          if (state.uploadedImageUrl != null) ...[
-            Text(
-              'Original Photo',
-              style: AppTextStyles.titleMedium.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: LayoutConstants.spacing12),
-            ImagePreview(imageUrl: state.uploadedImageUrl!, height: 200),
-            const SizedBox(height: LayoutConstants.spacing32),
-          ],
+      return _buildCompletedState(context, ref, state);
+    }
 
-          // Generated Images Grid
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    if (state.hasSelectedImage) {
+      return _buildPreviewState(context, ref, state);
+    }
+
+    return _buildEmptyState(context);
+  }
+
+  Widget _buildErrorState(WidgetRef ref, PhotoGenerationState state) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 40),
+      child: GenerationError(
+        message: state.errorMessage ?? 'Something went wrong',
+        onRetry: () => ref.read(photoGenerationProvider.notifier).retry(),
+      ),
+    );
+  }
+
+  Widget _buildCompletedState(
+    BuildContext context,
+    WidgetRef ref,
+    PhotoGenerationState state,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Original Image
+        if (state.uploadedImageUrl != null) ...[
+          _buildLabel('Original'),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: ImagePreview(imageUrl: state.uploadedImageUrl!, height: 200),
+          ),
+          const SizedBox(height: 32),
+        ],
+
+        // Results Header
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.primary.withOpacity(0.08),
+                AppColors.primary.withOpacity(0.03),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
             children: [
-              Text('AI Generated', style: AppTextStyles.titleLarge),
-              Text(
-                '${state.generatedImages.length} variations',
-                style: AppTextStyles.bodyMedium,
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.auto_awesome_rounded,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'AI Generated',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    Text(
+                      '${state.generatedImages.length} variations',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-          const SizedBox(height: LayoutConstants.spacing16),
+        ),
 
-          GeneratedImagesGrid(images: state.generatedImages),
+        const SizedBox(height: 16),
 
-          const SizedBox(height: LayoutConstants.spacing32),
+        // Generated Images Grid
+        GeneratedImagesGrid(images: state.generatedImages),
 
-          // Generate New Button
-          GenerationButton(
-            text: 'Generate New',
-            icon: Icons.refresh_rounded,
-            onPressed: () {
-              ref.read(photoGenerationProvider.notifier).reset();
-            },
-            type: GenerationButtonType.secondary,
-          ),
+        const SizedBox(height: 24),
 
-          const SizedBox(height: LayoutConstants.spacing24),
-        ],
-      );
-    }
+        // Action Buttons
+        _buildActionButton(
+          onTap: () => ref.read(photoGenerationProvider.notifier).reset(),
+          icon: Icons.refresh_rounded,
+          label: 'Generate New',
+          isPrimary: true,
+        ),
 
-    // Preview State - Show selected image with generate button
-    if (state.hasSelectedImage) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Selected Photo',
-            style: AppTextStyles.titleMedium.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: LayoutConstants.spacing12),
+        const SizedBox(height: 12),
 
-          ImagePreview(
+        _buildActionButton(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const GenerationHistoryScreen(),
+              ),
+            );
+          },
+          icon: Icons.grid_view_rounded,
+          label: 'View All History',
+          isPrimary: false,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPreviewState(
+    BuildContext context,
+    WidgetRef ref,
+    PhotoGenerationState state,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildLabel('Ready to Generate'),
+        const SizedBox(height: 12),
+
+        // Image Preview
+        ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: ImagePreview(
             imageFile: state.selectedImage,
-            height: context.screenHeight * 0.5,
+            height: context.screenHeight * 0.48,
             onRemove: () {
               ref.read(photoGenerationProvider.notifier).setSelectedImage(null);
             },
           ),
+        ),
 
-          const SizedBox(height: LayoutConstants.spacing32),
+        const SizedBox(height: 24),
 
-          // Generate Button
-          GenerationButton(
-            text: 'Generate AI Variations',
-            icon: Icons.auto_awesome_rounded,
-            onPressed: () {
-              ref.read(photoGenerationProvider.notifier).uploadAndGenerate();
-            },
-          ),
-
-          const SizedBox(height: LayoutConstants.spacing16),
-
-          // Info Text
-          Container(
-            padding: const EdgeInsets.all(LayoutConstants.spacing16),
-            decoration: BoxDecoration(
-              color: AppColors.info.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(LayoutConstants.radiusMedium),
+        // Info Card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.info.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppColors.info.withOpacity(0.2),
+              width: 1,
             ),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline_rounded, color: AppColors.info, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'We\'ll create 4 stunning variations',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.info,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // Generate Button
+        _buildActionButton(
+          onTap: () {
+            ref.read(photoGenerationProvider.notifier).uploadAndGenerate();
+          },
+          icon: Icons.auto_awesome_rounded,
+          label: 'Generate AI Variations',
+          isPrimary: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    return Column(
+      children: [
+        const SizedBox(height: 8),
+        const SizedBox(height: 28),
+        const UploadSection(),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildLabel(String text) {
+    return Text(
+      text.toUpperCase(),
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 1.2,
+        color: AppColors.textSecondary,
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required VoidCallback onTap,
+    required IconData icon,
+    required String label,
+    required bool isPrimary,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          decoration: BoxDecoration(
+            gradient: isPrimary
+                ? LinearGradient(
+                    colors: [
+                      AppColors.primary,
+                      AppColors.primary.withOpacity(0.85),
+                    ],
+                  )
+                : null,
+            color: isPrimary ? null : AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: isPrimary
+                ? null
+                : Border.all(
+                    color: AppColors.primary.withOpacity(0.2),
+                    width: 1.5,
+                  ),
+            boxShadow: isPrimary
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.3),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Container(
+            height: 56,
+            alignment: Alignment.center,
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  Icons.info_outline_rounded,
-                  color: AppColors.info,
-                  size: 20,
+                  icon,
+                  color: isPrimary ? Colors.white : AppColors.primary,
+                  size: 22,
                 ),
-                const SizedBox(width: LayoutConstants.spacing12),
-                Expanded(
-                  child: Text(
-                    'We\'ll create 4 amazing variations in different scenes!',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.info,
-                    ),
+                const SizedBox(width: 10),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: isPrimary ? Colors.white : AppColors.primary,
+                    letterSpacing: -0.3,
                   ),
                 ),
               ],
             ),
           ),
-        ],
-      );
-    }
-
-    // Empty State - No image selected
-    return Column(
-      children: [
-        const SizedBox(height: LayoutConstants.spacing24),
-        const EmptyStateSection(),
-        const SizedBox(height: LayoutConstants.spacing32),
-        const UploadSection(),
-      ],
+        ),
+      ),
     );
   }
 }

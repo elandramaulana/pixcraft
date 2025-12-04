@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart'; // Tambahkan import ini
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:riverpod/riverpod.dart';
 import 'auth_service.dart';
@@ -15,7 +16,10 @@ final firebaseStorageProvider = Provider<FirebaseStorage>((ref) {
 });
 
 final firebaseFirestoreProvider = Provider<FirebaseFirestore>((ref) {
-  return FirebaseFirestore.instance;
+  return FirebaseFirestore.instanceFor(
+    app: Firebase.app(),
+    databaseId: 'pixcraft', // Gunakan database 'pixcraft'
+  );
 });
 
 final firebaseFunctionsProvider = Provider<FirebaseFunctions>((ref) {

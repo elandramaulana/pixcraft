@@ -101,53 +101,10 @@ firebase deploy --only functions
 6. run app
 
 ## Application architecture
-┌─────────────────────────────────────────────────────────────┐
-│                 Presentation Layer (Flutter)                │
-│  ┌───────────┐  ┌───────────┐  ┌─────────────────────────┐ │
-│  │  Screens  │  │  Widgets  │  │  Providers (Riverpod)   │ │
-│  └───────────┘  └───────────┘  └─────────────────────────┘ │
-│         UI Components + State Management                    │
-└─────────────────────────────────────────────────────────────┘
-                            ↕
-┌─────────────────────────────────────────────────────────────┐
-│              Domain Layer (Business Logic)                  │
-│  ┌─────────────┐  ┌──────────┐  ┌────────────────────────┐ │
-│  │  Use Cases  │  │ Entities │  │ Repository Interfaces  │ │
-│  └─────────────┘  └──────────┘  └────────────────────────┘ │
-│              Pure Dart - No Framework Dependencies          │
-└─────────────────────────────────────────────────────────────┘
-                            ↕
-┌─────────────────────────────────────────────────────────────┐
-│               Data Layer (External APIs)                    │
-│  ┌──────────────┐  ┌─────────────┐  ┌──────────────────┐  │
-│  │    Models    │  │ Datasources │  │  Repositories    │  │
-│  └──────────────┘  └─────────────┘  └──────────────────┘  │
-│         Firebase + Cloud Functions Integration              │
-└─────────────────────────────────────────────────────────────┘
-                            ↕
-┌─────────────────────────────────────────────────────────────┐
-│              Backend (Cloud Functions)                      │
-│  ┌──────────────────┐  ┌─────────────────────────────────┐ │
-│  │  uploadImage     │  │  generatePhotoVariations        │ │
-│  └──────────────────┘  └─────────────────────────────────┘ │
-│         Node.js + TypeScript + Google Imagen AI             │
-└─────────────────────────────────────────────────────────────┘
 
-# Data flow
-## Data Flow
-```mermaid
-graph LR
-    A[User Action] --> B[Presentation]
-    B --> C[Domain/UseCase]
-    C --> D[Data/Repository]
-    D --> E[Backend/Cloud Function]
-    E --> F[External Services]
-    F --> E
-    E --> D
-    D --> C
-    C --> B
-    B --> G[UI Update]
-```
+<img width="769" height="254" alt="image" src="https://github.com/user-attachments/assets/3aea170a-0f96-4177-9642-31375728c2b1" />
+
+
 
 ## Security Approcah
 

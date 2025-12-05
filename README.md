@@ -102,15 +102,37 @@ firebase deploy --only functions
 
 ## Application architecture
 
-┌─────────────────────────────────────┐
-│ Presentation Layer (Flutter) │ ← UI + Riverpod State Management
-├─────────────────────────────────────┤
-│ Domain Layer (Business Logic) │ ← Use Cases + Entities (Pure Dart)
-├─────────────────────────────────────┤
-│ Data Layer (External APIs) │ ← Repositories + Datasources
-├─────────────────────────────────────┤
-│ Backend (Cloud Functions) │ ← Node.js + AI API Integration
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                 Presentation Layer (Flutter)                │
+│  ┌───────────┐  ┌───────────┐  ┌─────────────────────────┐ │
+│  │  Screens  │  │  Widgets  │  │  Providers (Riverpod)   │ │
+│  └───────────┘  └───────────┘  └─────────────────────────┘ │
+│         UI Components + State Management                    │
+└─────────────────────────────────────────────────────────────┘
+↕
+┌─────────────────────────────────────────────────────────────┐
+│              Domain Layer (Business Logic)                  │
+│  ┌─────────────┐  ┌──────────┐  ┌────────────────────────┐ │
+│  │  Use Cases  │  │ Entities │  │ Repository Interfaces  │ │
+│  └─────────────┘  └──────────┘  └────────────────────────┘ │
+│              Pure Dart - No Framework Dependencies          │
+└─────────────────────────────────────────────────────────────┘
+↕
+┌─────────────────────────────────────────────────────────────┐
+│               Data Layer (External APIs)                    │
+│  ┌──────────────┐  ┌─────────────┐  ┌──────────────────┐  │
+│  │    Models    │  │ Datasources │  │  Repositories    │  │
+│  └──────────────┘  └─────────────┘  └──────────────────┘  │
+│         Firebase + Cloud Functions Integration              │
+└─────────────────────────────────────────────────────────────┘
+↕
+┌─────────────────────────────────────────────────────────────┐
+│              Backend (Cloud Functions)                      │
+│  ┌──────────────────┐  ┌─────────────────────────────────┐ │
+│  │  uploadImage     │  │  generatePhotoVariations        │ │
+│  └──────────────────┘  └─────────────────────────────────┘ │
+│         Node.js + TypeScript + Google Imagen AI             │
+└─────────────────────────────────────────────────────────────┘
 
 # Data flow
 

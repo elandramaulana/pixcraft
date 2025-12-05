@@ -105,7 +105,7 @@ firebase deploy --only functions
 <img width="522" height="304" alt="image" src="https://github.com/user-attachments/assets/f352757f-083c-4e68-96c7-26d6ebc975fc" />
 
 
-## Security Approcah
+## Security Approach
 
 Multi-Layer Protection:
 

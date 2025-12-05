@@ -18,8 +18,8 @@ class UploadSection extends ConsumerWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.primary.withOpacity(0.05),
-            AppColors.primary.withOpacity(0.02),
+            AppColors.primary.withAlpha(5),
+            AppColors.primary.withAlpha(2),
           ],
         ),
         borderRadius: BorderRadius.circular(LayoutConstants.radiusXLarge),
@@ -33,7 +33,7 @@ class UploadSection extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withAlpha(1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -82,7 +82,7 @@ class UploadSection extends ConsumerWidget {
                     end: Alignment.bottomRight,
                     colors: [
                       AppColors.primary,
-                      AppColors.primary.withOpacity(0.8),
+                      AppColors.primary.withValues(alpha: 1.8),
                     ],
                   ),
                   onTap: () async {
@@ -112,7 +112,7 @@ class UploadSection extends ConsumerWidget {
                     end: Alignment.bottomRight,
                     colors: [
                       AppColors.primary,
-                      AppColors.primaryDark.withOpacity(0.8),
+                      AppColors.primary.withValues(alpha: 1.8),
                     ],
                   ),
                   onTap: () async {
@@ -137,7 +137,7 @@ class UploadSection extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(LayoutConstants.spacing12),
             decoration: BoxDecoration(
-              color: AppColors.info.withOpacity(0.1),
+              color: AppColors.info.withAlpha(1),
               borderRadius: BorderRadius.circular(LayoutConstants.radiusMedium),
             ),
             child: Row(
@@ -226,7 +226,7 @@ class _ModernUploadCardState extends State<_ModernUploadCard>
             borderRadius: BorderRadius.circular(LayoutConstants.radiusLarge),
             boxShadow: [
               BoxShadow(
-                color: widget.gradient.colors.first.withOpacity(0.3),
+                color: widget.gradient.colors.first.withAlpha(2),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -265,7 +265,7 @@ class _ModernUploadCardState extends State<_ModernUploadCard>
                     Text(
                       widget.description,
                       style: AppTextStyles.bodySmall.copyWith(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white,
                         fontSize: 11,
                       ),
                       textAlign: TextAlign.center,

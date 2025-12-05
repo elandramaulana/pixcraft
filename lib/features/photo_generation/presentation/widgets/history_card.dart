@@ -24,46 +24,78 @@ class HistoryCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(LayoutConstants.radiusMedium),
-          border: Border.all(color: AppColors.primary, width: 1),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image Grid Preview
-            _buildImageGrid(),
+            // Image Grid Preview with Overlay
+            Stack(
+              children: [
+                _buildImageGrid(),
+                _buildGradientOverlay(),
+                _buildTopBadges(),
+              ],
+            ),
 
             // Info Section
             Padding(
-              padding: const EdgeInsets.all(LayoutConstants.spacing16),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Status Badge & Date
+                  // Variation Count with Icon
                   Row(
                     children: [
-                      _buildStatusBadge(),
-                      const Spacer(),
-                      Text(
-                        _formatDate(generation.createdAt),
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textSecondary,
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          Icons.collections_rounded,
+                          size: 18,
+                          color: AppColors.primary,
                         ),
                       ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${generation.generatedImages.length} Variations',
+                              style: AppTextStyles.bodyMedium.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _formatDate(generation.createdAt),
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      _buildStatusBadge(),
                     ],
-                  ),
-
-                  const SizedBox(height: LayoutConstants.spacing8),
-
-                  // Variation Count
-                  Text(
-                    '${generation.generatedImages.length} variations generated',
-                    style: AppTextStyles.bodyMedium,
                   ),
 
                   // Variation Types
                   if (generation.variationTypes.isNotEmpty) ...[
-                    const SizedBox(height: LayoutConstants.spacing8),
+                    const SizedBox(height: 16),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -85,26 +117,38 @@ class HistoryCard extends StatelessWidget {
   Widget _buildImageGrid() {
     if (generation.generatedImages.isEmpty) {
       return Container(
-        height: 200,
+        height: 220,
         decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(LayoutConstants.radiusMedium),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppColors.background,
+              AppColors.background.withOpacity(0.8),
+            ],
           ),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.image_not_supported_rounded,
-                size: 48,
-                color: AppColors.textSecondary,
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.image_not_supported_rounded,
+                  size: 40,
+                  color: AppColors.textSecondary,
+                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Text(
-                'No images',
-                style: AppTextStyles.bodySmall.copyWith(
+                'No images generated',
+                style: AppTextStyles.bodyMedium.copyWith(
                   color: AppColors.textSecondary,
                 ),
               ),
@@ -117,46 +161,116 @@ class HistoryCard extends StatelessWidget {
     final displayImages = generation.generatedImages.take(4).toList();
 
     return ClipRRect(
-      borderRadius: const BorderRadius.vertical(
-        top: Radius.circular(LayoutConstants.radiusMedium),
-      ),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       child: SizedBox(
-        height: 200,
+        height: 220,
         child: GridView.builder(
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisSpacing: 2,
-            crossAxisSpacing: 2,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: displayImages.length == 1 ? 1 : 2,
+            mainAxisSpacing: 4,
+            crossAxisSpacing: 4,
           ),
           itemCount: displayImages.length,
           itemBuilder: (context, index) {
-            return Image.network(
-              displayImages[index].imageUrl,
-              fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
-                  color: AppColors.background,
-                  child: const Center(
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColors.primary,
+            return Container(
+              decoration: BoxDecoration(color: AppColors.background),
+              child: Image.network(
+                displayImages[index].imageUrl,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    color: AppColors.background,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                            : null,
+                        color: AppColors.primary,
+                      ),
                     ),
-                  ),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: AppColors.background,
-                  child: const Icon(
-                    Icons.broken_image_rounded,
-                    color: AppColors.textSecondary,
-                  ),
-                );
-              },
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: AppColors.background,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.broken_image_rounded,
+                          color: AppColors.textSecondary,
+                          size: 32,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Failed to load',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             );
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGradientOverlay() {
+    return Positioned(
+      bottom: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        height: 80,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+            colors: [Colors.black.withOpacity(0.6), Colors.transparent],
+          ),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopBadges() {
+    if (generation.generatedImages.isEmpty) return const SizedBox.shrink();
+
+    return Positioned(
+      top: 12,
+      right: 12,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.photo_library_rounded, size: 14, color: Colors.white),
+            const SizedBox(width: 4),
+            Text(
+              '${generation.generatedImages.length}',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -170,41 +284,43 @@ class HistoryCard extends StatelessWidget {
     switch (generation.status) {
       case 'completed':
         color = AppColors.success;
-        text = 'Completed';
+        text = 'Done';
         icon = Icons.check_circle_rounded;
         break;
       case 'processing':
         color = AppColors.warning;
         text = 'Processing';
-        icon = Icons.hourglass_bottom_rounded;
+        icon = Icons.autorenew_rounded;
         break;
       case 'failed':
         color = AppColors.error;
         text = 'Failed';
-        icon = Icons.error_rounded;
+        icon = Icons.error_outline_rounded;
         break;
       default:
         color = AppColors.textSecondary;
         text = 'Unknown';
-        icon = Icons.help_rounded;
+        icon = Icons.help_outline_rounded;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: color),
+          Icon(icon, size: 14, color: color),
           const SizedBox(width: 4),
           Text(
             text,
             style: AppTextStyles.bodySmall.copyWith(
               color: color,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
+              fontSize: 11,
             ),
           ),
         ],
@@ -214,18 +330,41 @@ class HistoryCard extends StatelessWidget {
 
   Widget _buildTypeChip(String type) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
-      ),
-      child: Text(
-        type,
-        style: AppTextStyles.bodySmall.copyWith(
-          color: AppColors.primary,
-          fontSize: 11,
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primary.withOpacity(0.15),
+            AppColors.primary.withOpacity(0.08),
+          ],
         ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppColors.primary.withOpacity(0.25),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            type,
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.primary,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

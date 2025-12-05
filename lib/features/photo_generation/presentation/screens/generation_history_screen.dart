@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pixcraft/app/theme/app_text_style.dart';
+import 'package:pixcraft/features/photo_generation/presentation/screens/photo_generation_screen.dart';
 import 'package:pixcraft/features/photo_generation/presentation/widgets/history_card.dart';
 import 'package:pixcraft/features/photo_generation/presentation/widgets/history_empty_state.dart';
 import '../../../../app/theme/app_colors.dart';
@@ -20,36 +21,53 @@ class GenerationHistoryScreen extends ConsumerWidget {
         child: CustomScrollView(
           slivers: [
             // App Bar
-            SliverAppBar(
-              floating: true,
-              snap: true,
-              backgroundColor: AppColors.background,
-              elevation: 0,
-              expandedHeight: 80,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_rounded),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-              flexibleSpace: FlexibleSpaceBar(
-                titlePadding: const EdgeInsets.symmetric(
-                  horizontal: LayoutConstants.paddingHorizontal,
-                  vertical: 16,
-                ),
-                title: Column(
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Text(
-                      'Generation History',
-                      style: AppTextStyles.displayMedium.copyWith(fontSize: 24),
+                    // Top Bar
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildbackButton(context),
+
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ShaderMask(
+                              shaderCallback: (bounds) => LinearGradient(
+                                colors: [
+                                  AppColors.primary,
+                                  AppColors.primary.withOpacity(0.7),
+                                ],
+                              ).createShader(bounds),
+                              child: const Text(
+                                'Pixcraft',
+                                style: TextStyle(
+                                  fontSize: 34,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -1,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'AI Photo Studio',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textSecondary,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    Text(
-                      'Your AI creations',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),
@@ -113,6 +131,32 @@ class GenerationHistoryScreen extends ConsumerWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildbackButton(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const PhotoGenerationScreen()),
+          );
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppColors.primary.withOpacity(0.1),
+              width: 1.5,
+            ),
+          ),
+          child: Icon(Icons.arrow_back_ios, color: AppColors.primary, size: 22),
         ),
       ),
     );

@@ -1,10 +1,6 @@
-# pixcraft
 
-A new Flutter project.
 
-## How To Setup
-
-# setup firebase
+## setup firebase
 
 1. create firebase firestore named 'pixcraft', and set rules
 
@@ -66,7 +62,7 @@ service firebase.storage {
 
 4. create firebase auth and enable Anonymous sign method
 
-# setup google cloud api
+## setup google cloud api
 
 1. create a google service (in my case i name it 'firebase-ai-generator') account and assign role
 
@@ -76,7 +72,7 @@ service firebase.storage {
 
 2. create keys in firebase-ai-generator service and select Json type then save key file
 
-# setup flutter project
+## setup flutter project
 
 1. clone project
 
@@ -104,7 +100,7 @@ firebase deploy --only functions
 
 <img width="769" height="254" alt="image" src="https://github.com/user-attachments/assets/3aea170a-0f96-4177-9642-31375728c2b1" />
 
-# Data Flow
+## Data Flow
 
 <img width="522" height="304" alt="image" src="https://github.com/user-attachments/assets/f352757f-083c-4e68-96c7-26d6ebc975fc" />
 

@@ -101,7 +101,6 @@ firebase deploy --only functions
 6. run app
 
 ## Application architecture
-
 ┌─────────────────────────────────────────────────────────────┐
 │                 Presentation Layer (Flutter)                │
 │  ┌───────────┐  ┌───────────┐  ┌─────────────────────────┐ │
@@ -109,7 +108,7 @@ firebase deploy --only functions
 │  └───────────┘  └───────────┘  └─────────────────────────┘ │
 │         UI Components + State Management                    │
 └─────────────────────────────────────────────────────────────┘
-↕
+                            ↕
 ┌─────────────────────────────────────────────────────────────┐
 │              Domain Layer (Business Logic)                  │
 │  ┌─────────────┐  ┌──────────┐  ┌────────────────────────┐ │
@@ -117,7 +116,7 @@ firebase deploy --only functions
 │  └─────────────┘  └──────────┘  └────────────────────────┘ │
 │              Pure Dart - No Framework Dependencies          │
 └─────────────────────────────────────────────────────────────┘
-↕
+                            ↕
 ┌─────────────────────────────────────────────────────────────┐
 │               Data Layer (External APIs)                    │
 │  ┌──────────────┐  ┌─────────────┐  ┌──────────────────┐  │
@@ -125,7 +124,7 @@ firebase deploy --only functions
 │  └──────────────┘  └─────────────┘  └──────────────────┘  │
 │         Firebase + Cloud Functions Integration              │
 └─────────────────────────────────────────────────────────────┘
-↕
+                            ↕
 ┌─────────────────────────────────────────────────────────────┐
 │              Backend (Cloud Functions)                      │
 │  ┌──────────────────┐  ┌─────────────────────────────────┐ │
@@ -135,19 +134,20 @@ firebase deploy --only functions
 └─────────────────────────────────────────────────────────────┘
 
 # Data flow
-
-User Action (Upload)
-→ Presentation (Provider notifies state change)
-→ Domain (UseCase validates & orchestrates)
-→ Data (Repository coordinates datasources)
-→ Cloud Function (uploadImage)
-→ Firebase Storage (file saved)
-→ Firestore (metadata saved)
-
-← Response flows back
-← Repository returns result
-← UseCase returns to Provider
-← UI updates based on state
+## Data Flow
+```mermaid
+graph LR
+    A[User Action] --> B[Presentation]
+    B --> C[Domain/UseCase]
+    C --> D[Data/Repository]
+    D --> E[Backend/Cloud Function]
+    E --> F[External Services]
+    F --> E
+    E --> D
+    D --> C
+    C --> B
+    B --> G[UI Update]
+```
 
 ## Security Approcah
 

@@ -104,6 +104,9 @@ firebase deploy --only functions
 
 <img width="769" height="254" alt="image" src="https://github.com/user-attachments/assets/3aea170a-0f96-4177-9642-31375728c2b1" />
 
+# Data Flow
+
+<img width="522" height="304" alt="image" src="https://github.com/user-attachments/assets/f352757f-083c-4e68-96c7-26d6ebc975fc" />
 
 
 ## Security Approcah

@@ -1,10 +1,6 @@
-# pixcraft
 
-A new Flutter project.
 
-## How To Setup
-
-# setup firebase
+## setup firebase
 
 1. create firebase firestore named 'pixcraft', and set rules
 
@@ -66,7 +62,7 @@ service firebase.storage {
 
 4. create firebase auth and enable Anonymous sign method
 
-# setup google cloud api
+## setup google cloud api
 
 1. create a google service (in my case i name it 'firebase-ai-generator') account and assign role
 
@@ -76,7 +72,7 @@ service firebase.storage {
 
 2. create keys in firebase-ai-generator service and select Json type then save key file
 
-# setup flutter project
+## setup flutter project
 
 1. clone project
 
@@ -102,30 +98,12 @@ firebase deploy --only functions
 
 ## Application architecture
 
-┌─────────────────────────────────────┐
-│ Presentation Layer (Flutter) │ ← UI + Riverpod State Management
-├─────────────────────────────────────┤
-│ Domain Layer (Business Logic) │ ← Use Cases + Entities (Pure Dart)
-├─────────────────────────────────────┤
-│ Data Layer (External APIs) │ ← Repositories + Datasources
-├─────────────────────────────────────┤
-│ Backend (Cloud Functions) │ ← Node.js + AI API Integration
-└─────────────────────────────────────┘
+<img width="769" height="254" alt="image" src="https://github.com/user-attachments/assets/3aea170a-0f96-4177-9642-31375728c2b1" />
 
-# Data flow
+## Data Flow
 
-User Action (Upload)
-→ Presentation (Provider notifies state change)
-→ Domain (UseCase validates & orchestrates)
-→ Data (Repository coordinates datasources)
-→ Cloud Function (uploadImage)
-→ Firebase Storage (file saved)
-→ Firestore (metadata saved)
+<img width="522" height="304" alt="image" src="https://github.com/user-attachments/assets/f352757f-083c-4e68-96c7-26d6ebc975fc" />
 
-← Response flows back
-← Repository returns result
-← UseCase returns to Provider
-← UI updates based on state
 
 ## Security Approcah
 

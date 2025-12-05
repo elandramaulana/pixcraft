@@ -13,14 +13,14 @@ const serviceAccountSecret = defineSecret('GOOGLE_SERVICE_ACCOUNT');
 
 // STRATEGY 1: Aggressive mask - only protect person silhouette
 async function generateAggressiveMask(imageBase64: string): Promise<string> {
-  console.log('🎭 Generating AGGRESSIVE mask (minimal person protection)...');
+  console.log(' Generating AGGRESSIVE mask (minimal person protection)...');
   
   const imageBuffer = Buffer.from(imageBase64, 'base64');
   const metadata = await sharp(imageBuffer).metadata();
   const width = metadata.width!;
   const height = metadata.height!;
 
-  console.log(`📐 Image size: ${width}x${height}`);
+  console.log(`Image size: ${width}x${height}`);
 
   // VERY SMALL person area: only 30% width x 40% height (face + upper body only)
   const personWidth = Math.floor(width * 0.3);
@@ -65,14 +65,14 @@ async function generateAggressiveMask(imageBase64: string): Promise<string> {
 
 // STRATEGY 2: Full background replacement - detect person with edge blur
 async function generateFullBackgroundMask(imageBase64: string): Promise<string> {
-  console.log('🎭 Generating FULL BACKGROUND replacement mask...');
+  console.log('Generating FULL BACKGROUND replacement mask...');
   
   const imageBuffer = Buffer.from(imageBase64, 'base64');
   const metadata = await sharp(imageBuffer).metadata();
   const width = metadata.width!;
   const height = metadata.height!;
 
-  console.log(`📐 Image size: ${width}x${height}`);
+  console.log(`Image size: ${width}x${height}`);
 
   // Even smaller: 25% width x 35% height
   const personWidth = Math.floor(width * 0.25);
@@ -112,7 +112,7 @@ async function generateFullBackgroundMask(imageBase64: string): Promise<string> 
   .toBuffer();
 
   const maskBase64 = maskBuffer.toString('base64');
-  console.log('✅ Full background mask generated - 80%+ area will be replaced');
+  console.log('Full background mask generated - 80%+ area will be replaced');
   
   return maskBase64;
 }
@@ -153,7 +153,7 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
         throw new HttpsError('permission-denied', 'User ID mismatch');
       }
 
-      console.log('✅ Validation passed');
+      console.log('Validation passed');
 
       // Get credentials
       const serviceAccountJson = serviceAccountSecret.value();
@@ -173,13 +173,13 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
       }
 
       // Download image
-      console.log('📥 Downloading image...');
+      console.log('Downloading image...');
       const imageResponse = await axios.get(imageUrl, { 
         responseType: 'arraybuffer',
         timeout: 30000,
       });
       const imageBase64 = Buffer.from(imageResponse.data).toString('base64');
-      console.log('✅ Image downloaded');
+      console.log('Image downloaded');
 
       // Generate mask
       const maskBase64 = await generateMask(imageBase64);
@@ -189,7 +189,7 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
         ? variations.slice(0, CONFIG.MAX_VARIATIONS)
         : Object.keys(VARIATION_PROMPTS).slice(0, CONFIG.MAX_VARIATIONS);
 
-      console.log('🎨 Generating variations:', variationTypes);
+      console.log('Generating variations:', variationTypes);
 
       // Setup Firestore
       let generationRef;
@@ -226,7 +226,7 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
         }
       } catch (firestoreError: any) {
         generationId = `gen_${Date.now()}`;
-        console.log('⚠️ Using temporary ID:', generationId);
+        console.log('Using temporary ID:', generationId);
       }
 
       // CORRECT API ENDPOINT - Use imagen-3.0-capability-001
@@ -237,7 +237,7 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
       // Generate each variation
       for (const variationType of variationTypes) {
         try {
-          console.log(`🎨 Generating ${variationType} variation...`);
+          console.log(`Generating ${variationType} variation...`);
 
           const prompt = VARIATION_PROMPTS[variationType as keyof typeof VARIATION_PROMPTS] || 
                         `${variationType} background scene`;
@@ -271,7 +271,7 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
             ],
             parameters: {
               sampleCount: 1,
-              editMode: "EDIT_MODE_INPAINT_INSERTION", // ✅ CORRECT: Insert new content
+              editMode: "EDIT_MODE_INPAINT_INSERTION", 
               editConfig: {
                 baseSteps: 60, // Increase for stronger edits (35-75 range)
               },
@@ -281,8 +281,8 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
             }
           };
 
-          console.log(`📡 Calling Imagen 3.0 API for ${variationType}...`);
-          console.log(`🎯 Prompt: ${prompt}`);
+          console.log(`Calling Imagen 3.0 API for ${variationType}...`);
+          console.log(`Prompt: ${prompt}`);
           
           const response = await axios.post(endpoint, requestBody, {
             headers: {
@@ -296,13 +296,13 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
 
           if (predictions && predictions.length > 0) {
             const generatedImageBase64 = predictions[0].bytesBase64Encoded;
-            console.log(`✅ ${variationType} generated successfully`);
+            console.log(`${variationType} generated successfully`);
 
             // Upload to Storage
             const timestamp = Date.now();
             const storagePath = `${CONFIG.STORAGE_PATHS.GENERATED}/${userId}/${generationId}/${variationType}_${timestamp}.jpg`;
 
-            console.log(`⬆️ Uploading to Storage: ${storagePath}`);
+            console.log(`Uploading to Storage: ${storagePath}`);
             const bucket = getStorage().bucket();
             const file = bucket.file(storagePath);
 
@@ -353,7 +353,7 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           };
           
-          console.log('📝 Updating generation document...');
+          console.log('Updating generation document...');
           await generationRef.update(updateData);
           console.log('✅ Generation document updated');
           

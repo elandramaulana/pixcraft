@@ -15,7 +15,7 @@ export const uploadImage = onCall<UploadImageRequest, Promise<UploadImageRespons
   },
   async (request) => {
     try {
-      console.log('📥 Upload request received');
+      console.log('Upload request received');
       console.log('User ID:', request.auth?.uid);
       
       // Validate authentication
@@ -45,10 +45,8 @@ export const uploadImage = onCall<UploadImageRequest, Promise<UploadImageRespons
       }
 
       console.log('✅ Validation passed');
-      console.log('🔧 Using Firestore database: pixcraft');
 
       // Convert base64 to buffer
-      console.log('📦 Converting base64 to buffer...');
       const imageBuffer = Buffer.from(imageBase64, 'base64');
       console.log(`✅ Buffer size: ${imageBuffer.length} bytes`);
 
@@ -65,10 +63,8 @@ export const uploadImage = onCall<UploadImageRequest, Promise<UploadImageRespons
       // Generate storage path
       const timestamp = Date.now();
       const storagePath = `${CONFIG.STORAGE_PATHS.ORIGINALS}/${userId}/${timestamp}_${fileName}`;
-      console.log(`📂 Storage path: ${storagePath}`);
 
       // Upload to Firebase Storage
-      console.log('⬆️  Uploading to Firebase Storage...');
       const bucket = getStorage().bucket();
       const file = bucket.file(storagePath);
 
@@ -85,7 +81,6 @@ export const uploadImage = onCall<UploadImageRequest, Promise<UploadImageRespons
       console.log('✅ File saved to storage');
 
       // Make file publicly accessible
-      console.log('🔓 Making file public...');
       await file.makePublic();
       const imageUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
       console.log(`✅ Public URL: ${imageUrl}`);
@@ -111,7 +106,6 @@ export const uploadImage = onCall<UploadImageRequest, Promise<UploadImageRespons
         };
         
         console.log('📝 Generation document data:', JSON.stringify(generationData, null, 2));
-        console.log('📝 Saving to collection:', CONFIG.COLLECTIONS.USER_GENERATIONS);
         
         const docRef = await db.collection(CONFIG.COLLECTIONS.USER_GENERATIONS).add(generationData);
         generationId = docRef.id;

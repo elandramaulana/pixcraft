@@ -31,8 +31,6 @@ class GenerationHistoryScreen extends ConsumerWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _buildbackButton(context),
-
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -65,6 +63,7 @@ class GenerationHistoryScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
+                        _buildbackButton(context),
                       ],
                     ),
                     const SizedBox(height: 24),

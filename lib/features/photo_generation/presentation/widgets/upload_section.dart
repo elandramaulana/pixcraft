@@ -147,51 +147,113 @@ class _UploadSectionState extends ConsumerState<UploadSection>
 
         const SizedBox(height: 24),
 
-        // Upload Options with Modern Cards
-        Row(
-          children: [
-            Expanded(
-              child: _ModernUploadCard(
-                icon: Icons.photo_library_rounded,
-                label: 'Gallery',
-                description: 'Choose from library',
-                primaryColor: AppColors.primary,
-                secondaryColor: Colors.purple,
-                onTap: () async {
-                  await ref
-                      .read(imagePickerProvider.notifier)
-                      .pickImageFromGallery();
-                  final image = ref.read(imagePickerProvider);
-                  if (image != null) {
-                    ref
-                        .read(photoGenerationProvider.notifier)
-                        .setSelectedImage(image);
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _ModernUploadCard(
-                icon: Icons.camera_alt_rounded,
-                label: 'Camera',
-                description: 'Take new photo',
-                primaryColor: Colors.blue,
-                secondaryColor: Colors.cyan,
-                onTap: () async {
-                  await ref
-                      .read(imagePickerProvider.notifier)
-                      .pickImageFromCamera();
-                  final image = ref.read(imagePickerProvider);
-                  if (image != null) {
-                    ref
-                        .read(photoGenerationProvider.notifier)
-                        .setSelectedImage(image);
-                  }
-                },
-              ),
-            ),
-          ],
+        // Upload Options with Modern Cards - Responsive
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isTablet = constraints.maxWidth >= 600;
+            final isDesktop = constraints.maxWidth >= 1024;
+
+            if (isDesktop) {
+              // Desktop: 2 cards side by side with max width
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _ModernUploadCard(
+                          icon: Icons.photo_library_rounded,
+                          label: 'Gallery',
+                          description: 'Choose from library',
+                          primaryColor: AppColors.primary,
+                          secondaryColor: Colors.purple,
+                          onTap: () async {
+                            await ref
+                                .read(imagePickerProvider.notifier)
+                                .pickImageFromGallery();
+                            final image = ref.read(imagePickerProvider);
+                            if (image != null) {
+                              ref
+                                  .read(photoGenerationProvider.notifier)
+                                  .setSelectedImage(image);
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 20),
+                      Expanded(
+                        child: _ModernUploadCard(
+                          icon: Icons.camera_alt_rounded,
+                          label: 'Camera',
+                          description: 'Take new photo',
+                          primaryColor: Colors.blue,
+                          secondaryColor: Colors.cyan,
+                          onTap: () async {
+                            await ref
+                                .read(imagePickerProvider.notifier)
+                                .pickImageFromCamera();
+                            final image = ref.read(imagePickerProvider);
+                            if (image != null) {
+                              ref
+                                  .read(photoGenerationProvider.notifier)
+                                  .setSelectedImage(image);
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            // Mobile & Tablet: Side by side
+            return Row(
+              children: [
+                Expanded(
+                  child: _ModernUploadCard(
+                    icon: Icons.photo_library_rounded,
+                    label: 'Gallery',
+                    description: 'Choose from library',
+                    primaryColor: AppColors.primary,
+                    secondaryColor: Colors.purple,
+                    onTap: () async {
+                      await ref
+                          .read(imagePickerProvider.notifier)
+                          .pickImageFromGallery();
+                      final image = ref.read(imagePickerProvider);
+                      if (image != null) {
+                        ref
+                            .read(photoGenerationProvider.notifier)
+                            .setSelectedImage(image);
+                      }
+                    },
+                  ),
+                ),
+                SizedBox(width: isTablet ? 20 : 16),
+                Expanded(
+                  child: _ModernUploadCard(
+                    icon: Icons.camera_alt_rounded,
+                    label: 'Camera',
+                    description: 'Take new photo',
+                    primaryColor: Colors.blue,
+                    secondaryColor: Colors.cyan,
+                    onTap: () async {
+                      await ref
+                          .read(imagePickerProvider.notifier)
+                          .pickImageFromCamera();
+                      final image = ref.read(imagePickerProvider);
+                      if (image != null) {
+                        ref
+                            .read(photoGenerationProvider.notifier)
+                            .setSelectedImage(image);
+                      }
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
         ),
 
         const SizedBox(height: 20),

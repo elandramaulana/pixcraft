@@ -335,7 +335,7 @@ class _UploadSectionState extends ConsumerState<UploadSection>
                 size: 14,
                 color: AppColors.primary,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 2),
               Text(
                 feature['text'] as String,
                 style: TextStyle(

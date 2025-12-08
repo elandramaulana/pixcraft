@@ -21,14 +21,31 @@ class PhotoGenerationNotifier extends StateNotifier<PhotoGenerationState> {
       state = state.copyWith(
         selectedImage: image,
         status: PhotoGenerationStatus.idle,
+        selectedScene: null, // Reset scene when changing image
+        generatedImages: [], // Clear previous generations
       );
     }
+  }
+
+  // NEW: Set selected scene
+  void setSelectedScene(String scene) {
+    state = state.copyWith(selectedScene: scene);
+    Logger.info('Scene selected: $scene');
   }
 
   // Upload and generate workflow
   Future<void> uploadAndGenerate() async {
     if (state.selectedImage == null) {
       Logger.error('No image selected');
+      return;
+    }
+
+    if (state.selectedScene == null) {
+      Logger.error('No scene selected');
+      state = state.copyWith(
+        status: PhotoGenerationStatus.error,
+        errorMessage: 'Please select a scene first',
+      );
       return;
     }
 
@@ -39,7 +56,9 @@ class PhotoGenerationNotifier extends StateNotifier<PhotoGenerationState> {
         throw Exception('User not authenticated');
       }
 
-      Logger.info('Starting upload and generation workflow');
+      Logger.info(
+        'Starting upload and generation workflow for scene: ${state.selectedScene}',
+      );
 
       // Step 1: Upload image (0-30%)
       state = state.copyWith(
@@ -63,20 +82,22 @@ class PhotoGenerationNotifier extends StateNotifier<PhotoGenerationState> {
       Logger.info('Image uploaded: ${uploadResponse.imageUrl}');
 
       // Step 2: Generate variations (30-100%)
+      final sceneName = _getSceneName(state.selectedScene!);
       state = state.copyWith(
         status: PhotoGenerationStatus.generatingVariations,
-        currentStep: 'Creating AI magic...',
+        currentStep: 'Creating $sceneName magic...',
         progress: 0.3,
       );
 
       final generateUseCase = ref.read(generateImagesUseCaseProvider);
 
       // Simulate progress updates for better UX
-      _updateProgressPeriodically();
+      _updateProgressPeriodically(sceneName);
 
       final generationResponse = await generateUseCase.execute(
         imageUrl: uploadResponse.imageUrl,
         userId: userId,
+        selectedScene: state.selectedScene!, // Pass selected scene
       );
 
       Logger.info('Generation completed: ${generationResponse.generationId}');
@@ -102,13 +123,13 @@ class PhotoGenerationNotifier extends StateNotifier<PhotoGenerationState> {
     }
   }
 
-  void _updateProgressPeriodically() {
+  void _updateProgressPeriodically(String sceneName) {
     final steps = [
-      (0.4, 'Generating beach scene...'),
-      (0.55, 'Generating city scene...'),
-      (0.70, 'Generating mountain scene...'),
-      (0.85, 'Generating cafe scene...'),
-      (0.95, 'Finishing up...'),
+      (0.4, 'Analyzing your photo...'),
+      (0.55, 'Creating $sceneName scene variation 1...'),
+      (0.70, 'Creating $sceneName scene variation 2...'),
+      (0.85, 'Creating $sceneName scene variation 3...'),
+      (0.95, 'Finalizing variation 4...'),
     ];
 
     for (var i = 0; i < steps.length; i++) {
@@ -121,6 +142,20 @@ class PhotoGenerationNotifier extends StateNotifier<PhotoGenerationState> {
         }
       });
     }
+  }
+
+  String _getSceneName(String sceneId) {
+    final sceneNames = {
+      'luxury_car': 'Luxury Car',
+      'cafe': 'Cozy Cafe',
+      'travel': 'Travel Adventure',
+      'beach': 'Beach Paradise',
+      'mountain': 'Mountain',
+      'city': 'Urban',
+      'office': 'Professional',
+      'party': 'Party Night',
+    };
+    return sceneNames[sceneId] ?? sceneId;
   }
 
   // Reset to start new generation

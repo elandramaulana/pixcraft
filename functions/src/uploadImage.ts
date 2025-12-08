@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getStorage } from 'firebase-admin/storage';
 import * as admin from 'firebase-admin';
-import { db } from './firebase';
+import { getDb } from './firebase';
 import { UploadImageRequest, UploadImageResponse } from './types';
 import { CONFIG } from './config';
 
@@ -91,6 +91,9 @@ export const uploadImage = onCall<UploadImageRequest, Promise<UploadImageRespons
       let generationId = '';
       
       try {
+        // Get Firestore instance using lazy initialization
+        const db = getDb();
+        
         const generationData = {
           userId,
           originalImage: {

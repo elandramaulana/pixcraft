@@ -12,10 +12,11 @@ abstract class PhotoRepository {
   });
 
   // Generate photo variations
-  Future<GenerationResponseModel> generatePhotoVariations({
+  Future<GeneratePhotoResponse> generatePhotoVariations({
     required String imageUrl,
     required String userId,
     List<String>? variations,
+    required String selectedScene,
   });
 
   // Get user's images stream

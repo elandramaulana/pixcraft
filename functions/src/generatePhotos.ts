@@ -3,149 +3,135 @@ import { defineSecret } from 'firebase-functions/params';
 import { getStorage } from 'firebase-admin/storage';
 import * as admin from 'firebase-admin';
 import { GoogleAuth } from 'google-auth-library';
-import axios from 'axios';
-import { db } from './firebase';
 import { GeneratePhotoRequest, GeneratePhotoResponse, GeneratedVariation } from './types';
-import { CONFIG, VARIATION_PROMPTS } from './config';
-import sharp from 'sharp';
+import { CONFIG, VARIATION_PROMPTS, NEGATIVE_PROMPTS, SCENE_CONTEXTS } from './config';
+import { getDb } from './firebase';
 
 const serviceAccountSecret = defineSecret('GOOGLE_SERVICE_ACCOUNT');
 
-// STRATEGY 1: Aggressive mask - only protect person silhouette
-async function generateAggressiveMask(imageBase64: string): Promise<string> {
-  console.log(' Generating AGGRESSIVE mask (minimal person protection)...');
-  
-  const imageBuffer = Buffer.from(imageBase64, 'base64');
-  const metadata = await sharp(imageBuffer).metadata();
-  const width = metadata.width!;
-  const height = metadata.height!;
+// Lazy imports to avoid initialization timeout
+let axios: any = null;
+let sharpModule: any = null;
 
-  console.log(`Image size: ${width}x${height}`);
-
-  // VERY SMALL person area: only 30% width x 40% height (face + upper body only)
-  const personWidth = Math.floor(width * 0.3);
-  const personHeight = Math.floor(height * 0.4);
-  const left = Math.floor((width - personWidth) / 2);
-  const top = Math.floor((height - personHeight) / 3); // Upper third
-
-  // Create WHITE background (90%+ will be edited)
-  const maskBuffer = await sharp({
-    create: {
-      width,
-      height,
-      channels: 3,
-      background: { r: 255, g: 255, b: 255 } // WHITE = edit ALL of this
-    }
-  })
-  .composite([
-    {
-      // Small BLACK oval/rectangle for person
-      input: await sharp({
-        create: {
-          width: personWidth,
-          height: personHeight,
-          channels: 3,
-          background: { r: 0, g: 0, b: 0 } // BLACK = keep only this tiny area
-        }
-      })
-      .png()
-      .toBuffer(),
-      top,
-      left,
-    }
-  ])
-  .png()
-  .toBuffer();
-
-  const maskBase64 = maskBuffer.toString('base64');
-  console.log('✅ Aggressive mask generated - 70%+ area will be edited');
-  
-  return maskBase64;
-}
-
-// STRATEGY 2: Full background replacement - detect person with edge blur
-async function generateFullBackgroundMask(imageBase64: string): Promise<string> {
-  console.log('Generating FULL BACKGROUND replacement mask...');
-  
-  const imageBuffer = Buffer.from(imageBase64, 'base64');
-  const metadata = await sharp(imageBuffer).metadata();
-  const width = metadata.width!;
-  const height = metadata.height!;
-
-  console.log(`Image size: ${width}x${height}`);
-
-  // Even smaller: 25% width x 35% height
-  const personWidth = Math.floor(width * 0.25);
-  const personHeight = Math.floor(height * 0.35);
-  const left = Math.floor((width - personWidth) / 2);
-  const top = Math.floor((height - personHeight) / 3.5);
-
-  // Create person silhouette with soft edges
-  const personMask = await sharp({
-    create: {
-      width: personWidth,
-      height: personHeight,
-      channels: 3,
-      background: { r: 0, g: 0, b: 0 }
-    }
-  })
-  .blur(5) // Soft edge untuk blending lebih natural
-  .png()
-  .toBuffer();
-
-  const maskBuffer = await sharp({
-    create: {
-      width,
-      height,
-      channels: 3,
-      background: { r: 255, g: 255, b: 255 }
-    }
-  })
-  .composite([
-    {
-      input: personMask,
-      top,
-      left,
-    }
-  ])
-  .png()
-  .toBuffer();
-
-  const maskBase64 = maskBuffer.toString('base64');
-  console.log('Full background mask generated - 80%+ area will be replaced');
-  
-  return maskBase64;
-}
-
-// Main function - choose strategy
-async function generateMask(imageBase64: string, strategy: 'aggressive' | 'full' = 'full'): Promise<string> {
-  if (strategy === 'aggressive') {
-    return generateAggressiveMask(imageBase64);
+async function getAxios() {
+  if (!axios) {
+    axios = (await import('axios')).default;
   }
-  return generateFullBackgroundMask(imageBase64);
+  return axios;
 }
+
+async function getSharp() {
+  if (!sharpModule) {
+    sharpModule = (await import('sharp')).default;
+  }
+  return sharpModule;
+}
+
+async function analyzeImageContext(imageBase64: string): Promise<{
+  aspectRatio: string;
+  orientation: 'portrait' | 'landscape' | 'square';
+  suggestedFraming: string;
+  dimensions: { width: number; height: number };
+}> {
+  const sharp = await getSharp();
+  const imageBuffer = Buffer.from(imageBase64, 'base64');
+  const metadata = await sharp(imageBuffer).metadata();
+  
+  const width = metadata.width!;
+  const height = metadata.height!;
+  const ratio = width / height;
+  
+  let orientation: 'portrait' | 'landscape' | 'square';
+  let suggestedFraming: string;
+  let aspectRatio: string;
+  
+  if (ratio < 0.95) {
+    orientation = 'portrait';
+    suggestedFraming = 'vertical portrait composition';
+    if (ratio < 0.65) {
+      aspectRatio = '9:16';
+    } else {
+      aspectRatio = '3:4';
+    }
+  } else if (ratio > 1.05) {
+    orientation = 'landscape';
+    suggestedFraming = 'horizontal landscape composition';
+    if (ratio > 1.6) {
+      aspectRatio = '16:9';
+    } else {
+      aspectRatio = '4:3';
+    }
+  } else {
+    orientation = 'square';
+    suggestedFraming = 'square composition';
+    aspectRatio = '1:1';
+  }
+  
+  console.log(`📊 Mapped ${width}x${height} (${ratio.toFixed(2)}) → ${aspectRatio}`);
+  
+  return { aspectRatio, orientation, suggestedFraming, dimensions: { width, height } };
+}
+
+// FIXED: Ultra-focused prompts for maximum face preservation
+function buildEnhancedPrompt(
+  basePrompt: string,
+  sceneContext: any,
+  variationIndex: number
+): string {
+  // Format: Keep subject [1] prominent with scene context
+  const variations = [
+    'professional photography, sharp focus on face',
+    'high quality portrait, natural expression', 
+    'lifestyle photography, authentic moment',
+    'editorial style photo, engaging pose'
+  ];
+  
+  const style = variations[variationIndex % variations.length];
+  
+  return `${basePrompt}, the person is [1], ${style}, photorealistic, 8k quality`;
+}
+// Di generatePhotoVariations.ts - GANTI buildNegativePrompt:
+function buildNegativePrompt(selectedScene: string): string {
+  // KUNCI: Fokus ke "jangan ubah identitas" bukan "jangan blur/distort"
+  const identityLock = `different person, wrong identity, face replacement, face swap, substituted face, another person's face, someone else, different individual, changed identity, swapped identity, face morph between people, merged faces, blended faces`;
+  
+  const featureChange = `altered facial features, modified face structure, different nose, different eyes, different eyebrows, different mouth shape, different chin, different cheekbones, different face shape, different skin tone, different complexion, different ethnicity, different gender presentation`;
+  
+  const ageChange = `different age, aged up, aged down, younger appearance, older appearance, baby face, elderly face, age progression, age regression`;
+  
+  const quality = `no face, faceless, missing face, obscured face, hidden face, covered face, blurred face, distorted face, deformed, mutation, disfigured, multiple faces, extra limbs, bad anatomy, low quality, blurry image, pixelated, watermark, text, logo`;
+  
+  const sceneNegative = NEGATIVE_PROMPTS[selectedScene as keyof typeof NEGATIVE_PROMPTS] || '';
+  
+  return `${identityLock}, ${featureChange}, ${ageChange}, ${quality}, ${sceneNegative}`;
+}
+
 
 export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<GeneratePhotoResponse>>(
   {
     secrets: [serviceAccountSecret],
-    timeoutSeconds: 300,
-    memory: '2GiB',
+    timeoutSeconds: 540,
+    memory: '4GiB',
     region: CONFIG.REGION,
     enforceAppCheck: false,
     cors: true,
+    minInstances: 0,
+    maxInstances: 10,
+    concurrency: 1,
   },
   async (request) => {
+    const startTime = Date.now();
+    
     try {
-      console.log('🚀 Starting generation request');
+      console.log('🚀 Starting photo generation with enhanced face preservation');
       
-      // Validation
       if (!request.auth) {
         throw new HttpsError('unauthenticated', 'User must be authenticated');
       }
 
-      const { imageUrl, userId, variations } = request.data;
+      const { imageUrl, userId, selectedScene } = request.data;
 
-      if (!imageUrl || !userId) {
+      if (!imageUrl || !userId || !selectedScene) {
         throw new HttpsError('invalid-argument', 'Missing required fields');
       }
 
@@ -153,7 +139,7 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
         throw new HttpsError('permission-denied', 'User ID mismatch');
       }
 
-      console.log('Validation passed');
+      console.log(`✅ Scene: ${selectedScene} | User: ${userId.substring(0, 8)}...`);
 
       // Get credentials
       const serviceAccountJson = serviceAccountSecret.value();
@@ -172,34 +158,46 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
         throw new Error('Failed to obtain access token');
       }
 
-      // Download image
-      console.log('Downloading image...');
-      const imageResponse = await axios.get(imageUrl, { 
+      console.log(`🔑 Authentication completed (${Date.now() - startTime}ms)`);
+
+      // Lazy load axios
+      const axiosInstance = await getAxios();
+
+      // Download and analyze image
+      console.log('📥 Downloading and analyzing image...');
+      const imageResponse = await axiosInstance.get(imageUrl, { 
         responseType: 'arraybuffer',
         timeout: 30000,
+        maxContentLength: 10 * 1024 * 1024,
       });
       const imageBase64 = Buffer.from(imageResponse.data).toString('base64');
-      console.log('Image downloaded');
+      
+      const imageContext = await analyzeImageContext(imageBase64);
+      console.log(`📊 Analysis: ${imageContext.orientation} ${imageContext.aspectRatio}`);
 
-      // Generate mask
-      const maskBase64 = await generateMask(imageBase64);
+      // Get scene configuration
+      const basePrompt = VARIATION_PROMPTS[selectedScene as keyof typeof VARIATION_PROMPTS];
+      const sceneContext = SCENE_CONTEXTS[selectedScene as keyof typeof SCENE_CONTEXTS];
+      
+      if (!basePrompt || !sceneContext) {
+        throw new HttpsError('invalid-argument', `Invalid scene: ${selectedScene}`);
+      }
 
-      // Setup variations
-      const variationTypes = variations && variations.length > 0
-        ? variations.slice(0, CONFIG.MAX_VARIATIONS)
-        : Object.keys(VARIATION_PROMPTS).slice(0, CONFIG.MAX_VARIATIONS);
+      const negativePrompt = buildNegativePrompt(selectedScene);
 
-      console.log('Generating variations:', variationTypes);
+      console.log(`🎨 Generating 4 variations with STRICT face preservation for: ${selectedScene}`);
 
-      // Setup Firestore
+      // Setup Firestore with lazy initialization
       let generationRef;
       let generationId;
       
       try {
+        const db = getDb();
         const querySnapshot = await db
           .collection(CONFIG.COLLECTIONS.USER_GENERATIONS)
           .where('userId', '==', userId)
           .where('originalImage.url', '==', imageUrl)
+          .where('selectedScene', '==', selectedScene)
           .limit(1)
           .get();
 
@@ -208,7 +206,7 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
           generationId = generationRef.id;
           await generationRef.update({
             status: 'processing',
-            variationTypes,
+            selectedScene,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           });
         } else {
@@ -217,7 +215,8 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
             originalImage: { url: imageUrl, storagePath: '', fileName: 'uploaded_image.jpg' },
             generatedImages: [],
             status: 'processing',
-            variationTypes,
+            selectedScene,
+            imageContext,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           };
@@ -226,83 +225,77 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
         }
       } catch (firestoreError: any) {
         generationId = `gen_${Date.now()}`;
-        console.log('Using temporary ID:', generationId);
+        console.log('⚠️ Using temporary ID:', generationId);
       }
 
-      // CORRECT API ENDPOINT - Use imagen-3.0-capability-001
-      const endpoint = `https://${CONFIG.REGION}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${CONFIG.REGION}/publishers/google/models/imagen-3.0-capability-001:predict`;
+      const endpoint = `https://${CONFIG.REGION}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${CONFIG.REGION}/publishers/google/models/${CONFIG.IMAGEN_MODEL}:predict`;
       
       const generatedVariations: GeneratedVariation[] = [];
+      const failedAttempts: number[] = [];
 
-      // Generate each variation
-      for (const variationType of variationTypes) {
+      // Generate 4 variations
+      for (let i = 0; i < CONFIG.MAX_VARIATIONS; i++) {
         try {
-          console.log(`Generating ${variationType} variation...`);
+          console.log(`🎨 Generating variation ${i + 1}/${CONFIG.MAX_VARIATIONS}...`);
 
-          const prompt = VARIATION_PROMPTS[variationType as keyof typeof VARIATION_PROMPTS] || 
-                        `${variationType} background scene`;
+          const enhancedPrompt = buildEnhancedPrompt(basePrompt, sceneContext, i);
 
-          // CORRECT REQUEST BODY (sesuai dokumentasi Imagen 3.0)
-          const requestBody = {
-            instances: [
+          // ULTRA-AGGRESSIVE FACE PRESERVATION CONFIGURATION
+      const requestBody = {
+        instances: [
+          {
+            prompt: enhancedPrompt,
+            negativePrompt: negativePrompt,
+            referenceImages: [
               {
-                prompt: prompt,
-                referenceImages: [
-                  {
-                    referenceType: "REFERENCE_TYPE_RAW",
-                    referenceId: 1,
-                    referenceImage: {
-                      bytesBase64Encoded: imageBase64
-                    }
-                  },
-                  {
-                    referenceType: "REFERENCE_TYPE_MASK",
-                    referenceId: 2,
-                    referenceImage: {
-                      bytesBase64Encoded: maskBase64
-                    },
-                    maskImageConfig: {
-                      maskMode: "MASK_MODE_USER_PROVIDED",
-                      dilation: 0.03 // Optional: slight dilation for smoother edges
-                    }
-                  }
-                ]
+                referenceType: "REFERENCE_TYPE_SUBJECT",
+                referenceId: 1,
+                referenceImage: {
+                  bytesBase64Encoded: imageBase64
+                },
+                subjectImageConfig: {
+                  subjectType: "SUBJECT_TYPE_PERSON",
+                  subjectDescription: "exact same person with identical face"
+                }
               }
-            ],
-            parameters: {
-              sampleCount: 1,
-              editMode: "EDIT_MODE_INPAINT_INSERTION", 
-              editConfig: {
-                baseSteps: 60, // Increase for stronger edits (35-75 range)
-              },
-              // Optional safety settings
-              safetyFilterLevel: "block_some",
-              personGeneration: "allow_adult",
-            }
-          };
+            ]
+          }
+        ],
+        parameters: {
+          sampleCount: 1,
+          aspectRatio: imageContext.aspectRatio,
+          safetyFilterLevel: "block_only_high",
+          personGeneration: "allow_adult",
+          addWatermark: false,
+          outputOptions: {
+            mimeType: "image/jpeg",
+            compressionQuality: 95
+          },
+          // KUNCI: Gunakan seed yang sama untuk konsistensi wajah
+          seed: 12345  // Seed tetap untuk semua variasi
+        }
+      };
 
-          console.log(`Calling Imagen 3.0 API for ${variationType}...`);
-          console.log(`Prompt: ${prompt}`);
-          
-          const response = await axios.post(endpoint, requestBody, {
+          console.log(`📝 Config: ${imageContext.aspectRatio} | ULTRA face preservation | seed: ${42 + i}`);
+
+          const response = await axiosInstance.post(endpoint, requestBody, {
             headers: {
               'Authorization': `Bearer ${accessToken.token}`,
               'Content-Type': 'application/json',
             },
-            timeout: 90000,
+            timeout: 120000,
           });
 
           const predictions = response.data.predictions;
 
           if (predictions && predictions.length > 0) {
             const generatedImageBase64 = predictions[0].bytesBase64Encoded;
-            console.log(`${variationType} generated successfully`);
+            console.log(`✅ Variation ${i + 1} generated with face preservation`);
 
             // Upload to Storage
             const timestamp = Date.now();
-            const storagePath = `${CONFIG.STORAGE_PATHS.GENERATED}/${userId}/${generationId}/${variationType}_${timestamp}.jpg`;
+            const storagePath = `${CONFIG.STORAGE_PATHS.GENERATED}/${userId}/${generationId}/${selectedScene}_v${i + 1}_${timestamp}.jpg`;
 
-            console.log(`Uploading to Storage: ${storagePath}`);
             const bucket = getStorage().bucket();
             const file = bucket.file(storagePath);
 
@@ -312,8 +305,9 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
                 metadata: {
                   userId,
                   generationId,
-                  variationType,
-                  prompt,
+                  scene: selectedScene,
+                  variationNumber: (i + 1).toString(),
+                  aspectRatio: imageContext.aspectRatio,
                   generatedAt: new Date().toISOString(),
                 },
               },
@@ -321,24 +315,39 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
 
             await file.makePublic();
             const generatedImageUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
-            console.log(`✅ File uploaded: ${generatedImageUrl}`);
 
             generatedVariations.push({
-              type: variationType,
+              type: `${selectedScene}_v${i + 1}`,
               imageUrl: generatedImageUrl,
               storagePath, 
-              prompt,
+              prompt: enhancedPrompt,
+              scene: selectedScene,
+              variationNumber: i + 1,
             });
 
-            console.log(`✅ ${variationType} completed`);
+            console.log(`✅ Variation ${i + 1} uploaded (${Date.now() - startTime}ms total)`);
           } else {
-            console.warn(`⚠️ No predictions returned for ${variationType}`);
+            console.warn(`⚠️ No predictions returned for variation ${i + 1}`);
+            failedAttempts.push(i + 1);
+          }
+
+          // Delay between generations
+          if (i < CONFIG.MAX_VARIATIONS - 1) {
+            const delay = 3000 + Math.random() * 2000;
+            await new Promise(resolve => setTimeout(resolve, delay));
           }
 
         } catch (error: any) {
-          console.error(`❌ Failed to generate ${variationType}:`, error.message);
+          console.error(`❌ Failed variation ${i + 1}:`, error.message);
+          failedAttempts.push(i + 1);
+          
           if (error.response?.data) {
-            console.error('API Error details:', JSON.stringify(error.response.data, null, 2));
+            console.error('API Error Details:', JSON.stringify(error.response.data, null, 2));
+          }
+          
+          if (error.response?.status === 429) {
+            console.log('⏳ Rate limited, waiting 8 seconds...');
+            await new Promise(resolve => setTimeout(resolve, 8000));
           }
         }
       }
@@ -348,33 +357,43 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
         try {
           const updateData = {
             generatedImages: generatedVariations,
+            selectedScene,
+            imageContext,
             status: generatedVariations.length > 0 ? 'completed' : 'failed',
+            successCount: generatedVariations.length,
+            failedAttempts: failedAttempts,
+            processingTimeMs: Date.now() - startTime,
             completedAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           };
           
-          console.log('Updating generation document...');
           await generationRef.update(updateData);
-          console.log('✅ Generation document updated');
+          console.log('✅ Firestore updated successfully');
           
         } catch (firestoreError: any) {
-          console.error('⚠️ Failed to update generation:', firestoreError);
+          console.error('⚠️ Firestore update failed:', firestoreError.message);
         }
       }
 
-      console.log('🎉 Generation completed:', generationId);
-      console.log(`📊 Successfully generated ${generatedVariations.length}/${variationTypes.length} variations`);
+      const successRate = ((generatedVariations.length / CONFIG.MAX_VARIATIONS) * 100).toFixed(0);
+      console.log(`🎉 Generation completed with face preservation!`);
+      console.log(`📊 Success: ${generatedVariations.length}/${CONFIG.MAX_VARIATIONS} (${successRate}%)`);
+      console.log(`⏱️  Total time: ${Date.now() - startTime}ms`);
 
       return {
-        success: true,
+        success: generatedVariations.length > 0,
         generationId,
-        message: `Successfully generated ${generatedVariations.length} variations`,
+        message: `Successfully generated ${generatedVariations.length} out of ${CONFIG.MAX_VARIATIONS} variations for ${selectedScene} with face preservation`,
         variations: generatedVariations,
+        selectedScene,
+        imageContext,
+        failedCount: failedAttempts.length,
+        processingTimeMs: Date.now() - startTime,
       };
 
     } catch (error: any) {
-      console.error('❌ Generation error:', error);
-      console.error('Error stack:', error.stack);
+      console.error('❌ Critical error:', error);
+      console.error('Stack trace:', error.stack);
 
       if (error instanceof HttpsError) {
         throw error;

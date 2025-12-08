@@ -8,20 +8,22 @@ export interface UploadImageResponse {
   success: boolean;
   imageUrl: string;
   storagePath: string;
-  documentId?: string; // generationId
+  documentId: string;
 }
 
 export interface GeneratePhotoRequest {
   imageUrl: string;
   userId: string;
-  variations?: string[]; 
+  selectedScene: string; // NEW: Selected scene ID
 }
 
 export interface GeneratedVariation {
   type: string;
   imageUrl: string;
-  storagePath: string;   // ➤ hanya pakai ini
+  storagePath: string;
   prompt: string;
+  scene?: string; // NEW: Scene identifier
+  variationNumber?: number; // NEW: Variation number (1-4)
 }
 
 export interface GeneratePhotoResponse {
@@ -29,19 +31,5 @@ export interface GeneratePhotoResponse {
   generationId: string;
   message: string;
   variations: GeneratedVariation[];
-}
-
-export interface UserGenerationDocument {
-  userId: string;
-  originalImage: {
-    url: string;
-    storagePath: string;
-    fileName: string;
-  };
-  generatedImages: GeneratedVariation[];
-  status: 'processing' | 'completed' | 'failed';
-  variationTypes: string[];
-  createdAt: FirebaseFirestore.Timestamp;
-  updatedAt: FirebaseFirestore.Timestamp;
-  completedAt?: FirebaseFirestore.Timestamp;
+  selectedScene?: string; // NEW: Selected scene
 }

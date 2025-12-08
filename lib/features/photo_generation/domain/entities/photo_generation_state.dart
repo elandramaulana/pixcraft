@@ -12,6 +12,7 @@ enum PhotoGenerationStatus {
 class PhotoGenerationState {
   final PhotoGenerationStatus status;
   final File? selectedImage;
+  final String? selectedScene; // NEW: Selected scene ID
   final String? uploadedImageUrl;
   final List<GeneratedImageModel> generatedImages;
   final String? errorMessage;
@@ -21,6 +22,7 @@ class PhotoGenerationState {
   const PhotoGenerationState({
     this.status = PhotoGenerationStatus.idle,
     this.selectedImage,
+    this.selectedScene,
     this.uploadedImageUrl,
     this.generatedImages = const [],
     this.errorMessage,
@@ -37,10 +39,14 @@ class PhotoGenerationState {
   bool get hasSelectedImage => selectedImage != null;
   bool get hasUploadedImage => uploadedImageUrl != null;
   bool get hasGeneratedImages => generatedImages.isNotEmpty;
+  bool get canGenerate =>
+      hasSelectedImage &&
+      selectedScene != null; // NEW: Check if ready to generate
 
   PhotoGenerationState copyWith({
     PhotoGenerationStatus? status,
     File? selectedImage,
+    String? selectedScene,
     String? uploadedImageUrl,
     List<GeneratedImageModel>? generatedImages,
     String? errorMessage,
@@ -50,6 +56,7 @@ class PhotoGenerationState {
     return PhotoGenerationState(
       status: status ?? this.status,
       selectedImage: selectedImage ?? this.selectedImage,
+      selectedScene: selectedScene ?? this.selectedScene,
       uploadedImageUrl: uploadedImageUrl ?? this.uploadedImageUrl,
       generatedImages: generatedImages ?? this.generatedImages,
       errorMessage: errorMessage,

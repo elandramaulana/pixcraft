@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pixcraft/core/extensions/context_extension.dart';
+import 'package:pixcraft/features/photo_generation/presentation/providers/image_picker_provider.dart';
 import 'package:pixcraft/features/photo_generation/presentation/widgets/generated_image_grid.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../domain/entities/photo_generation_state.dart';
@@ -9,101 +10,101 @@ import '../providers/photo_generation_provider.dart';
 import '../widgets/generation_loading.dart';
 import '../widgets/generation_error.dart';
 import '../widgets/image_preview.dart';
-import '../widgets/upload_section.dart';
+import '../widgets/scene_selector.dart';
 import 'generation_history_screen.dart';
 
-class PhotoGenerationScreen extends ConsumerWidget {
+class PhotoGenerationScreen extends ConsumerStatefulWidget {
   const PhotoGenerationScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PhotoGenerationScreen> createState() =>
+      _PhotoGenerationScreenState();
+}
+
+class _PhotoGenerationScreenState extends ConsumerState<PhotoGenerationScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _headerController;
+  late Animation<double> _headerFade;
+
+  @override
+  void initState() {
+    super.initState();
+    _headerController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _headerFade = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _headerController, curve: Curves.easeOut),
+    );
+    _headerController.forward();
+  }
+
+  @override
+  void dispose() {
+    _headerController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(photoGenerationProvider);
+    final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
+          // Animated gradient background
+          Positioned.fill(
+            child: AnimatedContainer(
+              duration: const Duration(seconds: 10),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppColors.background,
+                    AppColors.primary.withOpacity(0.02),
+                    AppColors.background,
+                  ],
+                ),
+              ),
+            ),
+          ),
+
           // Main Content
           SafeArea(
-            bottom: false,
             child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
               slivers: [
-                // Modern Minimal App Bar
+                // Elegant Header
                 SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Top Bar
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // App Title
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                ShaderMask(
-                                  shaderCallback: (bounds) => LinearGradient(
-                                    colors: [
-                                      AppColors.primary,
-                                      AppColors.primary.withOpacity(0.7),
-                                    ],
-                                  ).createShader(bounds),
-                                  child: const Text(
-                                    'Pixcraft',
-                                    style: TextStyle(
-                                      fontSize: 34,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: -1,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'AI Photo Studio',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.textSecondary,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            // History Button
-                            _buildHistoryButton(context),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
+                  child: FadeTransition(
+                    opacity: _headerFade,
+                    child: _buildHeader(context),
                   ),
                 ),
 
                 // Content
                 SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
                   sliver: SliverToBoxAdapter(
                     child: _buildContent(context, ref, state),
                   ),
                 ),
-
-                // Bottom Padding
-                const SliverToBoxAdapter(child: SizedBox(height: 40)),
               ],
             ),
           ),
 
-          // Loading Overlay
+          // Loading Overlay with Glassmorphism
           if (state.isLoading)
             Positioned.fill(
-              child: Container(
-                color: Colors.black.withOpacity(0.5),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: Container(
+                  color: Colors.black.withOpacity(0.4),
                   child: GenerationLoading(
                     progress: state.progress,
                     message: state.currentStep,
@@ -116,31 +117,93 @@ class PhotoGenerationScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHistoryButton(BuildContext context) {
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Pixcraft',
+                  style: TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -1.5,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'AI Photo Studio',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _buildHeaderButton(
+            icon: Icons.history_rounded,
+            onTap: () {
+              Navigator.of(context).push(
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      const GenerationHistoryScreen(),
+                  transitionsBuilder:
+                      (context, animation, secondaryAnimation, child) {
+                        return FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position:
+                                Tween<Offset>(
+                                  begin: const Offset(0.0, 0.05),
+                                  end: Offset.zero,
+                                ).animate(
+                                  CurvedAnimation(
+                                    parent: animation,
+                                    curve: Curves.easeOut,
+                                  ),
+                                ),
+                            child: child,
+                          ),
+                        );
+                      },
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const GenerationHistoryScreen()),
-          );
-        },
-        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.all(12),
+          width: 48,
+          height: 48,
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(14),
+            color: AppColors.surface.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: AppColors.primary.withOpacity(0.1),
-              width: 1.5,
+              width: 1,
             ),
           ),
-          child: Icon(
-            Icons.history_rounded,
-            color: AppColors.primary,
-            size: 22,
-          ),
+          child: Icon(icon, color: AppColors.primary, size: 22),
         ),
       ),
     );
@@ -160,10 +223,10 @@ class PhotoGenerationScreen extends ConsumerWidget {
     }
 
     if (state.hasSelectedImage) {
-      return _buildPreviewState(context, ref, state);
+      return _buildSceneSelectionState(context, ref, state);
     }
 
-    return _buildEmptyState(context);
+    return _buildEmptyState(context, ref);
   }
 
   Widget _buildErrorState(WidgetRef ref, PhotoGenerationState state) {
@@ -184,89 +247,37 @@ class PhotoGenerationScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Original Image
         if (state.uploadedImageUrl != null) ...[
-          _buildLabel('Original'),
+          _buildSectionTitle('Original Photo'),
           const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: ImagePreview(imageUrl: state.uploadedImageUrl!, height: 200),
+          Hero(
+            tag: 'original_image',
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: ImagePreview(
+                imageUrl: state.uploadedImageUrl!,
+                height: 200,
+              ),
+            ),
           ),
           const SizedBox(height: 32),
         ],
 
-        // Results Header
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColors.primary.withOpacity(0.08),
-                AppColors.primary.withOpacity(0.03),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.auto_awesome_rounded,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'AI Generated',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    Text(
-                      '${state.generatedImages.length} variations',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-
+        _buildResultsHeader(state.generatedImages.length),
         const SizedBox(height: 16),
 
-        // Generated Images Grid
         GeneratedImagesGrid(images: state.generatedImages),
+        const SizedBox(height: 32),
 
-        const SizedBox(height: 24),
-
-        // Action Buttons
-        _buildActionButton(
+        _buildPrimaryButton(
+          label: 'Create Another',
+          icon: Icons.add_photo_alternate_rounded,
           onTap: () => ref.read(photoGenerationProvider.notifier).reset(),
-          icon: Icons.refresh_rounded,
-          label: 'Generate New',
-          isPrimary: true,
         ),
-
         const SizedBox(height: 12),
-
-        _buildActionButton(
+        _buildSecondaryButton(
+          label: 'View History',
+          icon: Icons.history_rounded,
           onTap: () {
             Navigator.of(context).push(
               MaterialPageRoute(
@@ -274,15 +285,12 @@ class PhotoGenerationScreen extends ConsumerWidget {
               ),
             );
           },
-          icon: Icons.grid_view_rounded,
-          label: 'View All History',
-          isPrimary: false,
         ),
       ],
     );
   }
 
-  Widget _buildPreviewState(
+  Widget _buildSceneSelectionState(
     BuildContext context,
     WidgetRef ref,
     PhotoGenerationState state,
@@ -290,149 +298,199 @@ class PhotoGenerationScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildLabel('Ready to Generate'),
+        _buildSectionTitle('Your Photo'),
         const SizedBox(height: 12),
-
-        // Image Preview
-        ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: ImagePreview(
-            imageFile: state.selectedImage,
-            height: context.screenHeight * 0.48,
-            onRemove: () {
-              ref.read(photoGenerationProvider.notifier).setSelectedImage(null);
-            },
-          ),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Info Card
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.info.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: AppColors.info.withOpacity(0.2),
-              width: 1,
+        Hero(
+          tag: 'selected_image',
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: ImagePreview(
+              imageFile: state.selectedImage,
+              height: context.screenHeight * 0.35,
+              onRemove: () {
+                ref
+                    .read(photoGenerationProvider.notifier)
+                    .setSelectedImage(null);
+              },
             ),
           ),
-          child: Row(
-            children: [
-              Icon(Icons.info_outline_rounded, color: AppColors.info, size: 20),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'We\'ll create 4 stunning variations',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.info,
-                    fontWeight: FontWeight.w500,
-                    height: 1.4,
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
+        const SizedBox(height: 32),
 
-        const SizedBox(height: 20),
+        _buildSectionTitle('Choose Your Scene'),
+        const SizedBox(height: 16),
 
-        // Generate Button
-        _buildActionButton(
-          onTap: () {
-            ref.read(photoGenerationProvider.notifier).uploadAndGenerate();
+        SceneSelector(
+          selectedScene: state.selectedScene,
+          onSceneSelected: (scene) {
+            ref.read(photoGenerationProvider.notifier).setSelectedScene(scene);
           },
-          icon: Icons.auto_awesome_rounded,
-          label: 'Generate AI Variations',
-          isPrimary: true,
         ),
+
+        const SizedBox(height: 24),
+
+        if (state.selectedScene != null) ...[
+          _buildInfoCard(
+            'We\'ll create 4 unique variations of your chosen scene',
+            Icons.auto_awesome_rounded,
+          ),
+          const SizedBox(height: 20),
+          _buildPrimaryButton(
+            label: 'Generate Photos',
+            icon: Icons.auto_awesome_rounded,
+            onTap: () {
+              ref.read(photoGenerationProvider.notifier).uploadAndGenerate();
+            },
+          ),
+        ],
       ],
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildEmptyState(BuildContext context, WidgetRef ref) {
     return Column(
       children: [
-        const SizedBox(height: 8),
-        const SizedBox(height: 28),
-        const UploadSection(),
+        const SizedBox(height: 20),
+        _buildUploadCard(context, ref),
         const SizedBox(height: 24),
+        _buildFeatureHighlights(),
       ],
     );
   }
 
-  Widget _buildLabel(String text) {
+  Widget _buildSectionTitle(String title) {
     return Text(
-      text.toUpperCase(),
-      style: TextStyle(
-        fontSize: 12,
+      title,
+      style: const TextStyle(
+        fontSize: 20,
         fontWeight: FontWeight.w700,
-        letterSpacing: 1.2,
-        color: AppColors.textSecondary,
+        letterSpacing: -0.5,
       ),
     );
   }
 
-  Widget _buildActionButton({
-    required VoidCallback onTap,
-    required IconData icon,
+  Widget _buildResultsHeader(int count) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primary.withOpacity(0.1),
+            AppColors.primary.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.auto_awesome_rounded,
+              color: AppColors.primary,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Generated',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$count stunning variations',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoCard(String text, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.info.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.info.withOpacity(0.2), width: 1),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColors.info, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.info,
+                fontWeight: FontWeight.w500,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrimaryButton({
     required String label,
-    required bool isPrimary,
+    required IconData icon,
+    required VoidCallback onTap,
   }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         child: Ink(
           decoration: BoxDecoration(
-            gradient: isPrimary
-                ? LinearGradient(
-                    colors: [
-                      AppColors.primary,
-                      AppColors.primary.withOpacity(0.85),
-                    ],
-                  )
-                : null,
-            color: isPrimary ? null : AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: isPrimary
-                ? null
-                : Border.all(
-                    color: AppColors.primary.withOpacity(0.2),
-                    width: 1.5,
-                  ),
-            boxShadow: isPrimary
-                ? [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ]
-                : null,
+            gradient: LinearGradient(
+              colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+            ),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: Container(
-            height: 56,
+            height: 58,
             alignment: Alignment.center,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  icon,
-                  color: isPrimary ? Colors.white : AppColors.primary,
-                  size: 22,
-                ),
+                Icon(icon, color: Colors.white, size: 22),
                 const SizedBox(width: 10),
                 Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 16,
+                  style: const TextStyle(
+                    fontSize: 17,
                     fontWeight: FontWeight.w600,
-                    color: isPrimary ? Colors.white : AppColors.primary,
+                    color: Colors.white,
                     letterSpacing: -0.3,
                   ),
                 ),
@@ -441,6 +499,227 @@ class PhotoGenerationScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildSecondaryButton({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          height: 58,
+          decoration: BoxDecoration(
+            color: AppColors.surface.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: AppColors.primary.withOpacity(0.2),
+              width: 1.5,
+            ),
+          ),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: AppColors.primary, size: 22),
+              const SizedBox(width: 10),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUploadCard(BuildContext context, WidgetRef ref) {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: AppColors.surface.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: AppColors.primary.withOpacity(0.1), width: 1),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.primary.withOpacity(0.2),
+                  AppColors.primary.withOpacity(0.1),
+                ],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.photo_camera_rounded,
+              size: 40,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Start Creating',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Upload your photo to begin',
+            style: TextStyle(
+              fontSize: 15,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 32),
+          Row(
+            children: [
+              Expanded(
+                child: _buildUploadOption(
+                  context,
+                  icon: Icons.photo_library_rounded,
+                  label: 'Gallery',
+                  onTap: () async {
+                    await ref
+                        .read(imagePickerProvider.notifier)
+                        .pickImageFromGallery();
+                    final image = ref.read(imagePickerProvider);
+                    if (image != null) {
+                      ref
+                          .read(photoGenerationProvider.notifier)
+                          .setSelectedImage(image);
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildUploadOption(
+                  context,
+                  icon: Icons.camera_alt_rounded,
+                  label: 'Camera',
+                  onTap: () async {
+                    await ref
+                        .read(imagePickerProvider.notifier)
+                        .pickImageFromCamera();
+                    final image = ref.read(imagePickerProvider);
+                    if (image != null) {
+                      ref
+                          .read(photoGenerationProvider.notifier)
+                          .setSelectedImage(image);
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUploadOption(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppColors.primary.withOpacity(0.15),
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: AppColors.primary, size: 28),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeatureHighlights() {
+    final features = [
+      {'icon': Icons.auto_awesome, 'text': 'AI Powered'},
+      {'icon': Icons.flash_on, 'text': 'Instant'},
+      {'icon': Icons.hd, 'text': 'HD Quality'},
+    ];
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      alignment: WrapAlignment.center,
+      children: features.map((feature) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppColors.primary.withOpacity(0.15),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                feature['icon'] as IconData,
+                size: 16,
+                color: AppColors.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                feature['text'] as String,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 }

@@ -44,10 +44,11 @@ class PhotoRepositoryImpl implements PhotoRepository {
   }
 
   @override
-  Future<GenerationResponseModel> generatePhotoVariations({
+  Future<GeneratePhotoResponse> generatePhotoVariations({
     required String imageUrl,
     required String userId,
     List<String>? variations,
+    required String selectedScene,
   }) async {
     try {
       Logger.info('Repository: Generating photo variations for user $userId');
@@ -55,7 +56,7 @@ class PhotoRepositoryImpl implements PhotoRepository {
       final request = GenerationRequestModel(
         imageUrl: imageUrl,
         userId: userId,
-        variations: variations,
+        selectedScene: selectedScene,
       );
 
       final response = await _cloudFunctionDatasource.generatePhotoVariations(

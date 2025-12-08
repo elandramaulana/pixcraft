@@ -10,7 +10,9 @@ final cloudFunctionDatasourceProvider = Provider<CloudFunctionDatasource>((
   ref,
 ) {
   final functions = ref.watch(firebaseFunctionsProvider);
-  return CloudFunctionDatasource(functions);
+  return CloudFunctionDatasourceImpl(
+    functions,
+  ); // Changed: Use the implementation class
 });
 
 // Firestore Datasource Provider

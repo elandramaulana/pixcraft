@@ -65,91 +65,144 @@ export const SCENES = {
   },
 } as const;
 
-// ULTRA-SIMPLE: Just describe the scene, let [1] preserve the face
+// BALANCED: Focus on pose + setting, let reference handle face
 export const VARIATION_PROMPTS = {
-  luxury_car: `person sitting naturally in luxury car driver seat, hands on steering wheel, casual comfortable driving position, looking forward through windshield`,
-  
-  cafe: `person sitting at cafe table, holding coffee cup with hands, leaning slightly forward, natural relaxed posture`,
-  
-  travel: `person standing casually at landmark, hands in pockets or by sides, natural tourist pose, slight smile`,
-  
-  beach: `person standing on beach, arms relaxed at sides or one hand running through hair, natural beach pose, ocean behind`,
-  
-  mountain: `person standing on trail, hands on hips or holding backpack straps, confident outdoor pose, mountain background`,
-  
-  city: `person walking on city sidewalk, natural stride, arms swinging naturally, looking forward, urban background`,
-  
-  office: `person sitting at office desk, typing on laptop or holding pen, professional working posture, office background`,
-  
-  party: `person standing at venue, holding drink in one hand, relaxed social pose, ambient party lighting behind`,
+  luxury_car: `
+    Person is positioned inside a luxury sports car with a natural driving or passenger pose: hands holding steering wheel or resting naturally,
+    torso angled according to car seat, relaxed shoulders. 
+    pose fully redefined. NOT same as base image
+    Replace entire background with premium car interior.
+  `,
+
+  cafe: `
+    Person adopts a pose: sitting at cafe table, holding coffee cup with one hand, leaning slightly forward, natural relaxed posture.
+    NOT the same pose with base image.
+    Replace full background with warm modern cafe environment.
+  `,
+
+  travel: `
+    Person adopts new tourist pose: standing casually, slightly leaning, 
+    hands relaxed (or holding phone/camera), natural stance suitable for sightseeing.
+     pose fully redefined. NOT same as base image
+    Replace background with iconic landmark scenery.
+  `,
+
+  beach: `
+    Person adopts beach pose: standing with a relaxed beach pose (light breeze posture, natural hip shift, relaxed arms or one hand touching hair).
+    pose fully redefined. NOT same as base image
+    Replace the background with a tropical beach.
+  `,
+
+  mountain: `
+    Person adopts adventure pose: standing on trail, holding backpack straps, confident outdoor pose, mountain background.
+    Pose fully redefined, not same as base image
+  `,
+
+  city: `
+    Person adopts walking on city sidewalk: natural stride, arms swinging naturally, looking forward.
+    Generate new outfit and body posture matching the scene NOT same base with image.
+    Replace background with urban backgroud.
+  `,
+
+  office: `
+    Person adopts office-appropriate pose: seated at desk, typing on laptop,
+    or standing with arms lightly crossed. Reposed body, not same with base imange.
+    Replace background with modern office interior.
+  `,
+
+  party: `
+    Person adopts party social pose: holding a drink, slightly leaning, relaxed shoulders,
+    natural nightlife posture. 
+    Entire pose must be newly generated, uniquely suited for party scene.
+    Replace background with elegant party venue.
+  `,
 };
+
+
+
+
 
 export function getSceneInfo(sceneId: string) {
   return SCENES[sceneId as keyof typeof SCENES] || null;
 }
 
-// FIXED: Stronger negative prompts focused on preventing face changes
+// REBALANCED: Much stronger identity lock
 export const NEGATIVE_PROMPTS = {
-  common: "different person, wrong identity, face replacement, altered face, face morph, inconsistent features",
+  identity: "different person, wrong person, face swap, altered identity, changed facial features, wrong identity",
   
-  luxury_car: "cheap car, damaged interior, old vehicle, messy",
-  cafe: "empty cafe, messy, fluorescent harsh lighting, corporate chain",
-  travel: "crowded, photoshopped fake background, empty landmarks",
-  beach: "polluted beach, overcast, dirty sand, crowded",
-  mountain: "flat land, urban setting, wrong season clothes",
-  city: "empty streets, suburban, rural, wrong time of day",
-  office: "cluttered messy desk, outdated office, poor lighting",
-  party: "empty venue, bright daylight, casual daytime outfit",
+  background: "keeping exact same background, identical original background, original photo background, same background, unchanged background",
+  
+  // Tambahan larangan pose lama
+  pose: "same pose as original photo, identical selfie pose, unchanged posture, unmodified body position, stiff pose, selfie-like pose, arm position identical to selfie, same body angle as reference, original selfie framing, original pose silhouette",
+  
+  luxury_car: "cheap car, damaged vehicle, old car interior, no car visible",
+  cafe: "empty room, no cafe elements, harsh fluorescent lighting",
+  travel: "no landmark visible, generic indoor space",
+  beach: "no ocean, no beach, indoor location, urban setting",
+  mountain: "flat terrain, no mountains visible, indoor setting",
+  city: "rural area, nature only, no urban elements",
+  office: "home setting, messy room, no office furniture",
+  party: "bright daylight, empty room, no party atmosphere",
 };
 
-// FIXED: Cleaner, more focused scene contexts
+
+
+// REFINED: Describe environment without overriding Person
 export const SCENE_CONTEXTS = {
   luxury_car: {
-    lighting: "soft natural light with subtle interior glow",
+    lighting: "soft interior ambient lighting",
     mood: "confident sophisticated",
     colorPalette: "rich blacks, chrome, warm leather",
-    environment: "luxury car interior"
+    environment: "luxury car interior",
+    backgroundElements: "car dashboard, steering wheel, premium leather seats"
   },
   cafe: {
     lighting: "warm golden hour window light",
     mood: "relaxed cozy",
     colorPalette: "warm browns, cream, natural wood",
-    environment: "modern aesthetic cafe"
+    environment: "modern aesthetic cafe",
+    backgroundElements: "cafe furniture, coffee equipment, plants, windows"
   },
   travel: {
-    lighting: "golden hour warm glow",
+    lighting: "natural bright daylight",
     mood: "adventurous excited",
-    colorPalette: "vibrant natural colors",
-    environment: "iconic landmark location"
+    colorPalette: "vibrant colors, clear blues",
+    environment: "iconic landmark location",
+    backgroundElements: "famous landmark, architectural structure"
   },
   beach: {
-    lighting: "bright natural sunlight",
+    lighting: "bright tropical sunlight",
     mood: "carefree joyful",
     colorPalette: "turquoise, white sand, tropical",
-    environment: "tropical beach paradise"
+    environment: "tropical beach",
+    backgroundElements: "ocean, sandy beach, palm trees, blue sky"
   },
   mountain: {
     lighting: "crisp clear daylight",
     mood: "adventurous energized",
     colorPalette: "greens, grays, earth tones",
-    environment: "mountain wilderness"
+    environment: "mountain wilderness",
+    backgroundElements: "mountain peaks, forest trail, rocky terrain"
   },
   city: {
-    lighting: "urban mixed natural and artificial",
+    lighting: "urban daylight",
     mood: "confident stylish",
-    colorPalette: "urban grays, warm lights",
-    environment: "modern city street"
+    colorPalette: "urban grays, modern tones",
+    environment: "modern city street",
+    backgroundElements: "tall buildings, city skyline, urban street"
   },
   office: {
-    lighting: "natural daylight with office lighting",
-    mood: "professional approachable",
+    lighting: "natural office lighting",
+    mood: "professional focused",
     colorPalette: "clean whites, blues, glass",
-    environment: "contemporary office"
+    environment: "contemporary office",
+    backgroundElements: "office desk, monitors, glass walls, furniture"
   },
   party: {
     lighting: "warm ambient with bokeh",
     mood: "celebratory glamorous",
-    colorPalette: "rich blacks, gold, jewel tones",
-    environment: "upscale nightlife venue"
+    colorPalette: "blacks, gold, jewel tones",
+    environment: "upscale venue",
+    backgroundElements: "party lights, bokeh, elegant decor"
   },
 };

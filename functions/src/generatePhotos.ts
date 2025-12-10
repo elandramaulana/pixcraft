@@ -13,6 +13,12 @@ const serviceAccountSecret = defineSecret('GOOGLE_SERVICE_ACCOUNT');
 let axios: any = null;
 let sharpModule: any = null;
 
+function generateDynamicSeed(variationIndex: number): number {
+  const timestamp = Date.now();
+  const randomComponent = Math.floor(Math.random() * 10000);
+  return timestamp + (variationIndex * 1000) + randomComponent;
+}
+
 async function getAxios() {
   if (!axios) {
     axios = (await import('axios')).default;
@@ -72,40 +78,58 @@ async function analyzeImageContext(imageBase64: string): Promise<{
   return { aspectRatio, orientation, suggestedFraming, dimensions: { width, height } };
 }
 
-// FIXED: Ultra-focused prompts for maximum face preservation
+// BALANCED: Gentle prompt that respects reference strength
 function buildEnhancedPrompt(
   basePrompt: string,
   sceneContext: any,
-  variationIndex: number
+  variationIndex: number,
+  timestamp: number
 ): string {
-  // Format: Keep subject [1] prominent with scene context
-  const variations = [
-    'professional photography, sharp focus on face',
-    'high quality portrait, natural expression', 
-    'lifestyle photography, authentic moment',
-    'editorial style photo, engaging pose'
+  // PRIORITY 1: Face preservation (PALING ATAS)
+  const facePreservation = `person's face must be EXACTLY identical to reference image: same person, same facial features, same identity, same gender, same age, same skin tone, same facial structure.`;
+  
+  // PRIORITY 2: Scene context (simple and clear)
+  const settingContext = `Background: ${sceneContext.environment} with ${sceneContext.backgroundElements}. Lighting: ${sceneContext.lighting}.`;
+  
+  // PRIORITY 3: Pose variation (moderate, not aggressive)
+  const seed = timestamp + variationIndex;
+  const poseVariations = [
+    'natural relaxed pose appropriate for the scene',
+    'casual comfortable posture fitting the environment',
+    'confident stance suitable for the setting',
+    'dynamic pose that matches the scene context',
+    'authentic body language for this situation',
+    'genuine natural positioning in the environment'
   ];
+  const poseDesc = poseVariations[seed % poseVariations.length];
   
-  const style = variations[variationIndex % variations.length];
+  const poseOverride = `Body pose: ${poseDesc}, different from original photo pose.`;
   
-  return `${basePrompt}, the person is [1], ${style}, photorealistic, 8k quality`;
-}
-// Di generatePhotoVariations.ts - GANTI buildNegativePrompt:
-function buildNegativePrompt(selectedScene: string): string {
-  // KUNCI: Fokus ke "jangan ubah identitas" bukan "jangan blur/distort"
-  const identityLock = `different person, wrong identity, face replacement, face swap, substituted face, another person's face, someone else, different individual, changed identity, swapped identity, face morph between people, merged faces, blended faces`;
-  
-  const featureChange = `altered facial features, modified face structure, different nose, different eyes, different eyebrows, different mouth shape, different chin, different cheekbones, different face shape, different skin tone, different complexion, different ethnicity, different gender presentation`;
-  
-  const ageChange = `different age, aged up, aged down, younger appearance, older appearance, baby face, elderly face, age progression, age regression`;
-  
-  const quality = `no face, faceless, missing face, obscured face, hidden face, covered face, blurred face, distorted face, deformed, mutation, disfigured, multiple faces, extra limbs, bad anatomy, low quality, blurry image, pixelated, watermark, text, logo`;
-  
-  const sceneNegative = NEGATIVE_PROMPTS[selectedScene as keyof typeof NEGATIVE_PROMPTS] || '';
-  
-  return `${identityLock}, ${featureChange}, ${ageChange}, ${quality}, ${sceneNegative}`;
+  // PRIORITY 4: Style (minimal)
+  const styles = ['natural photography', 'professional portrait', 'lifestyle photo', 'editorial style'];
+  const style = styles[(seed * 7) % styles.length];
+
+  // CRITICAL: Urutan matters! Face first, then scene, then pose
+  return `${facePreservation} ${settingContext} ${poseOverride} ${basePrompt.trim()} ${style}, photorealistic, high quality, sharp focus`;
 }
 
+
+function buildNegativePrompt(selectedScene: string): string {
+  // PRIORITY 1: Identity lock (most important)
+  const identityLock = `different person, wrong person, different face, face swap, changed facial features, wrong gender, different identity, age change, different skin tone`;
+  
+  // PRIORITY 2: Quality
+  const qualityIssues = `blurry, low quality, distorted, deformed, bad anatomy, extra limbs, multiple faces, watermark, logo`;
+  
+  // PRIORITY 3: Scene-specific
+  const sceneNegative = NEGATIVE_PROMPTS[selectedScene as keyof typeof NEGATIVE_PROMPTS] || '';
+
+  // PRIORITY 4: Background/pose (moderate blocking)
+  const backgroundHint = `same exact background as reference, identical original backdrop, unchanged scenery`;
+  const poseHint = `exact same pose as reference image, identical arm position as original photo, mirror copy of reference pose`;
+
+  return `${identityLock}, ${qualityIssues}, ${sceneNegative}, ${backgroundHint}, ${poseHint}`;
+}
 
 export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<GeneratePhotoResponse>>(
   {
@@ -123,7 +147,7 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
     const startTime = Date.now();
     
     try {
-      console.log('🚀 Starting photo generation with enhanced face preservation');
+      console.log('🚀 Starting photo generation with BALANCED face preservation + background change');
       
       if (!request.auth) {
         throw new HttpsError('unauthenticated', 'User must be authenticated');
@@ -183,9 +207,7 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
         throw new HttpsError('invalid-argument', `Invalid scene: ${selectedScene}`);
       }
 
-      const negativePrompt = buildNegativePrompt(selectedScene);
-
-      console.log(`🎨 Generating 4 variations with STRICT face preservation for: ${selectedScene}`);
+      console.log(`🎨 Generating 4 variations with BALANCED approach for: ${selectedScene}`);
 
       // Setup Firestore with lazy initialization
       let generationRef;
@@ -238,45 +260,51 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
         try {
           console.log(`🎨 Generating variation ${i + 1}/${CONFIG.MAX_VARIATIONS}...`);
 
-          const enhancedPrompt = buildEnhancedPrompt(basePrompt, sceneContext, i);
 
-          // ULTRA-AGGRESSIVE FACE PRESERVATION CONFIGURATION
-      const requestBody = {
-        instances: [
-          {
-            prompt: enhancedPrompt,
-            negativePrompt: negativePrompt,
-            referenceImages: [
+          const timestamp = Date.now();
+          const enhancedPrompt = buildEnhancedPrompt(basePrompt, sceneContext, i, timestamp);
+          const negativePrompt = buildNegativePrompt(selectedScene);
+          const currentSeed = generateDynamicSeed(i);
+          // CRITICAL BALANCE: Strong reference control + gentle setting guidance
+          const requestBody = {
+            instances: [
               {
-                referenceType: "REFERENCE_TYPE_SUBJECT",
-                referenceId: 1,
-                referenceImage: {
-                  bytesBase64Encoded: imageBase64
-                },
-                subjectImageConfig: {
-                  subjectType: "SUBJECT_TYPE_PERSON",
-                  subjectDescription: "exact same person with identical face"
+                prompt: enhancedPrompt,
+                negativePrompt: negativePrompt,
+              referenceImages: [
+                {
+                  referenceType: "REFERENCE_TYPE_SUBJECT",
+                  referenceId: 1,
+                  referenceImage: {
+                    bytesBase64Encoded: imageBase64
+                  },
+                  subjectImageConfig: {
+                    subjectType: "SUBJECT_TYPE_PERSON",
+                    subjectDescription: "exact same person as shown in reference image, identical facial features including eyes, nose, mouth, face shape, skin tone, and gender, complete facial identity must be preserved, this is the primary subject that must not change"
+                  }
                 }
+              ]
               }
-            ]
-          }
-        ],
+            ],
         parameters: {
-          sampleCount: 1,
-          aspectRatio: imageContext.aspectRatio,
-          safetyFilterLevel: "block_only_high",
-          personGeneration: "allow_adult",
-          addWatermark: false,
-          outputOptions: {
-            mimeType: "image/jpeg",
-            compressionQuality: 95
-          },
-          // KUNCI: Gunakan seed yang sama untuk konsistensi wajah
-          seed: 12345  // Seed tetap untuk semua variasi
-        }
-      };
+        sampleCount: 1,
+        aspectRatio: imageContext.aspectRatio,
+        safetyFilterLevel: "block_only_high",
+        personGeneration: "allow_all_ages",
+        addWatermark: false,
+        outputOptions: {
+          mimeType: "image/jpeg",
+          compressionQuality: 95
+        },
+        seed: currentSeed,
+        guidanceScale: 4.5 + (Math.random() * 0.8) // ✅ 4.5-5.3 range (lebih tinggi untuk lock face)
+      }
+          };
 
-          console.log(`📝 Config: ${imageContext.aspectRatio} | ULTRA face preservation | seed: ${42 + i}`);
+
+
+     
+      console.log(`📝 Config: ${imageContext.aspectRatio} | Priority: FACE LOCK | seed: ${currentSeed} | guidance: 3.8 (ref-focused)`);
 
           const response = await axiosInstance.post(endpoint, requestBody, {
             headers: {
@@ -290,7 +318,7 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
 
           if (predictions && predictions.length > 0) {
             const generatedImageBase64 = predictions[0].bytesBase64Encoded;
-            console.log(`✅ Variation ${i + 1} generated with face preservation`);
+            console.log(`✅ Variation ${i + 1} generated - face preserved with new setting`);
 
             // Upload to Storage
             const timestamp = Date.now();
@@ -376,14 +404,14 @@ export const generatePhotoVariations = onCall<GeneratePhotoRequest, Promise<Gene
       }
 
       const successRate = ((generatedVariations.length / CONFIG.MAX_VARIATIONS) * 100).toFixed(0);
-      console.log(`🎉 Generation completed with face preservation!`);
+      console.log(`🎉 Generation completed with BALANCED approach!`);
       console.log(`📊 Success: ${generatedVariations.length}/${CONFIG.MAX_VARIATIONS} (${successRate}%)`);
       console.log(`⏱️  Total time: ${Date.now() - startTime}ms`);
 
       return {
         success: generatedVariations.length > 0,
         generationId,
-        message: `Successfully generated ${generatedVariations.length} out of ${CONFIG.MAX_VARIATIONS} variations for ${selectedScene} with face preservation`,
+        message: `Successfully generated ${generatedVariations.length} out of ${CONFIG.MAX_VARIATIONS} variations for ${selectedScene} with balanced face preservation`,
         variations: generatedVariations,
         selectedScene,
         imageContext,
